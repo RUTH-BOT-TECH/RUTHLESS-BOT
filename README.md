@@ -8,7 +8,7 @@
 [![Node](https://img.shields.io/badge/Node.js-20.19%2B-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-Multi--Device-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://www.whatsapp.com/)
 [![Status](https://img.shields.io/badge/Status-Work%20in%20Progress-9b6dff?style=for-the-badge)](docs/setup-and-privacy.md)
-[![License: Not specified](https://img.shields.io/badge/License-Not%20specified-9b6dff?style=for-the-badge)](https://choosealicense.com/no-permission/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-9b6dff?style=for-the-badge)](LICENSE)
 
 [![Stars](https://img.shields.io/github/stars/RUTH-BOT-TECH/RUTHLESS-BOT?style=flat-square&color=9b6dff)](https://github.com/RUTH-BOT-TECH/RUTHLESS-BOT/stargazers)
 [![Forks](https://img.shields.io/github/forks/RUTH-BOT-TECH/RUTHLESS-BOT?style=flat-square&color=9b6dff)](https://github.com/RUTH-BOT-TECH/RUTHLESS-BOT/forks)
@@ -19,7 +19,7 @@
 
 ## 🔑 1. Get your session ID
 
-Choose **Pairing code** or **Scan QR** on the [pairing site](https://venom-bot-rqpa.onrender.com/). Your ID is sent privately to your WhatsApp—not shown on the site.
+Tap the session badge above, then choose **Pairing code** or **Scan QR**. Your ID is sent privately to your WhatsApp—not shown on the site.
 
 > Experimental: the site is online, but live WhatsApp pairing and private delivery have not yet been verified.
 
@@ -36,7 +36,8 @@ On Render, enter **`SESSION_ID`** and **`OWNER_NUMBER`** (international digits, 
 - Your session ID controls your linked account. **Never share it**; delete the WhatsApp message after deploying.
 - Use an ID only from a pairing site you trust. **Never run the same ID on two hosts**: WhatsApp may disconnect both.
 - Experimental project: real WhatsApp pairing and delivery are not yet verified. Free hosts may sleep or lose local data.
-- Pairing-site operators: [setup, privacy, backup & test guide](docs/setup-and-privacy.md).
+
+[![Setup, privacy and backups](https://img.shields.io/badge/SETUP-PRIVACY%20%26%20BACKUPS-9b6dff?style=for-the-badge)](docs/setup-and-privacy.md)
 
 ## 💻 Run locally
 
@@ -45,7 +46,11 @@ npm install
 npm start
 ```
 
-Node.js 20.19+ is required. Set your environment variables first; see [`.env.example`](.env.example).
+Node.js 20.19+ is required. Set your environment variables first.
+
+Project code is MIT licensed; third-party components have their own terms, including AGPL-3.0 for IMG.LY background removal.
+
+[![Environment configuration](https://img.shields.io/badge/ENVIRONMENT-EXAMPLE-9b6dff?style=for-the-badge)](.env.example)
 
 ---
 <div align="center">Built with Baileys · Creator credit: <b>2348021016309</b></div>

@@ -1,6 +1,7 @@
 {
   "name": "ruthless-md",
   "version": "1.0.0",
+  "license": "MIT",
   "private": true,
   "type": "commonjs",
   "engines": {
