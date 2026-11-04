@@ -1,0 +1,57 @@
+const config = require('./config');
+const { isOwner, phoneJid } = require('./lib/owner');
+const { checkCooldown } = require('./lib/cooldown');
+const { presence } = require('./lib/presence');
+const { resolveParticipant } = require('./lib/group');
+const box = text => `╭─❖ ${config.botName}\n${String(text).split('\n').map(line => `│ ➜ ${line}`).join('\n')}\n╰────────────`;
+function unwrap(message) {
+  let m = message || {};
+  for (let i = 0; i < 4; i++) {
+    const next = m.ephemeralMessage?.message || m.viewOnceMessage?.message || m.viewOnceMessageV2?.message || m.documentWithCaptionMessage?.message;
+    if (!next) break; m = next;
+  }
+  return m;
+}
+function getText(message) {
+  const m = unwrap(message);
+  return m.conversation || m.extendedTextMessage?.text || m.imageMessage?.caption || m.videoMessage?.caption || m.documentMessage?.caption || '';
+}
+async function handle(sock, msg, commands, db) {
+  if (!msg?.message || !msg.key?.remoteJid || msg.key.remoteJid === 'status@broadcast') return;
+  const chat = msg.key.remoteJid; const group = chat.endsWith('@g.us');
+  const sender = group ? msg.key.participant : (msg.key.fromMe ? sock.user?.id : chat);
+  if (!sender) return;
+  const alt = group ? msg.key.participantAlt : msg.key.remoteJidAlt;
+  const owner = await isOwner(sock, sender, alt);
+  if (!msg.key.fromMe) await presence(sock, chat, db);
+  const text = getText(msg.message).trim();
+  if (!text.startsWith(config.prefix)) return;
+  if (config.mode === 'self' && !owner && !msg.key.fromMe) return;
+  const parts = text.slice(config.prefix.length).trim().split(/\s+/);
+  const name = (parts.shift() || '').toLowerCase();
+  const command = commands.get(name); if (!command) return;
+  let replied = false;
+  const reply = async (text, options = {}) => { replied = true; return sock.sendMessage(chat, { text: box(text), ...options }, { quoted: msg }); };
+  try {
+    const resolved = await phoneJid(sock, sender, alt) || sender;
+    if (group && !owner && (await db.get(`group:${chat}:ban:${sender}`, false) || await db.get(`group:${chat}:ban:${resolved}`, false))) return;
+    if (command.ownerOnly && !owner) return;
+    if (command.groupOnly && !group) return reply('This command can only be used in a group.');
+    if (command.adminOnly) {
+      const meta = await sock.groupMetadata(chat);
+      const pn = await phoneJid(sock, sender, alt);
+      const participant = await resolveParticipant(sock, meta.participants, sender) || await resolveParticipant(sock, meta.participants, pn);
+      if (!participant?.admin && !owner) return reply('Only group admins can use this');
+    }
+    const remaining = await checkCooldown(db, resolved, command.name, command.cooldown);
+    if (remaining) return reply(`⏳ Try again in ${Math.floor(remaining / 60)}m ${remaining % 60}s.`);
+    await db.set(`seen:${resolved}`, { name: msg.pushName || '', at: Date.now() });
+    await command.run({ sock, msg, sender: resolved, args: parts, commands, reply, db, chat, group, owner, box, invoked: name,
+      markReplied: () => { replied = true; } });
+    if (!replied) await reply('✅ Done.');
+  } catch (error) {
+    console.error(`Command ${name} failed:`, error.message);
+    try { await reply('⚠️ Something went wrong. Please try again later.'); } catch (sendError) { console.error('Reply failed:', sendError.message); }
+  }
+}
+module.exports = { handle, getText, box };

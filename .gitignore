@@ -1,0 +1,11 @@
+node_modules/
+.env
+session/
+database/
+logs/
+*.log
+.venv/
+__pycache__/
+.cache/
+.env.*
+!.env.example
