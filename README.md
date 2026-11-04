@@ -8,17 +8,20 @@
 [![Node](https://img.shields.io/badge/Node.js-20.19%2B-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-Multi--Device-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://www.whatsapp.com/)
 [![Status](https://img.shields.io/badge/Status-Work%20in%20Progress-9b6dff?style=for-the-badge)](docs/setup-and-privacy.md)
+[![License: Not specified](https://img.shields.io/badge/License-Not%20specified-9b6dff?style=for-the-badge)](https://choosealicense.com/no-permission/)
 
 [![Stars](https://img.shields.io/github/stars/RUTH-BOT-TECH/RUTHLESS-BOT?style=flat-square&color=9b6dff)](https://github.com/RUTH-BOT-TECH/RUTHLESS-BOT/stargazers)
 [![Forks](https://img.shields.io/github/forks/RUTH-BOT-TECH/RUTHLESS-BOT?style=flat-square&color=9b6dff)](https://github.com/RUTH-BOT-TECH/RUTHLESS-BOT/forks)
+
+[![Get your session](https://img.shields.io/badge/GET%20YOUR%20SESSION-PAIR%20NOW-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://venom-bot-rqpa.onrender.com/)
 
 </div>
 
 ## 🔑 1. Get your session ID
 
-Choose **Pairing code** or **Scan QR** on the pairing site. Your ID is sent privately to your WhatsApp—not shown on the site.
+Choose **Pairing code** or **Scan QR** on the [pairing site](https://venom-bot-rqpa.onrender.com/). Your ID is sent privately to your WhatsApp—not shown on the site.
 
-> The pairing site is built but **not publicly hosted yet**. [Pairing-site setup](docs/setup-and-privacy.md#pairing-service-operator-setup)
+> Experimental: the site is online, but live WhatsApp pairing and private delivery have not yet been verified.
 
 ## 🚀 2. Deploy your bot
 
