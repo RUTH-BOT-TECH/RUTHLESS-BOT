@@ -62,3 +62,11 @@ test('Baileys LID mapping persists in the session Signal store', async () => {
     assert.equal(require('../lib/owner').normalize(result),'234111111111@s.whatsapp.net'); second.close();
   } finally {await db.close(); await fs.rm(dir,{recursive:true,force:true});}
 });
+
+
+test('unknown commands receive a rate-limited explanation instead of silence',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'ruthless-unknown-'));const db=await new Database('',path.join(dir,'db.json')).connect();
+ try{const sent=[],sock={user:{id:'234123456789@s.whatsapp.net'},sendMessage:async(_jid,p)=>sent.push(p)};const m=text=>({key:{remoteJid:'234998877665@s.whatsapp.net'},message:{conversation:text}});const commands=loadCommands();
+ await handle(sock,m('.stillmissing'),commands,db);assert.match(sent.at(-1).text,/Command not available yet/);assert.match(sent.at(-1).text,/\.menu/);const count=sent.length;await handle(sock,m('.alsomissing'),commands,db);assert.equal(sent.length,count);
+ }finally{await db.close();await fs.rm(dir,{recursive:true,force:true});}
+});

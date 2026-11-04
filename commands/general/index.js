@@ -8,9 +8,6 @@ const defaults = { category: 'general', ownerOnly: false, adminOnly: false, grou
 const cmd = (name, aliases, description, usage, run, extra = {}) => ({ ...defaults, name, aliases, description, usage, run, ...extra });
 const usage = (ctx, text, example) => ctx.reply(`⚠️ Usage: ${config.prefix}${text}\nExample: ${config.prefix}${example}`);
 const elapsed = seconds => `${Math.floor(seconds / 86400)}d ${Math.floor(seconds % 86400 / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
-async function sendBanner(ctx, text) {
-  await require('../../lib/event-images').send({sock:ctx.sock,db:ctx.db,chat:ctx.chat,event:'menu',user:ctx.sender,text:ctx.box(text),quoted:ctx.msg});ctx.markReplied();
-}
 async function fetchJson(url) {
   const r = await fetch(url, { headers: { 'User-Agent': 'Ruthless-MD/1.0', Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json();
@@ -20,18 +17,6 @@ function githubRepo() {
   try { const u = new URL(config.repoUrl); const parts = u.pathname.split('/').filter(Boolean); if (u.hostname !== 'github.com' || parts.length !== 2 || !/^[\w.-]+$/.test(parts[0]) || !/^[\w.-]+$/.test(parts[1])) return null; return parts.map(encodeURIComponent).join('/').replace(/\.git$/, ''); } catch { return null; }
 }
 const commands = [
-  cmd('menu', ['help', 'list', 'commands', 'allmenu'], 'Show the command menu or details.', 'help [command]', async ctx => {
-    if (ctx.args[0]) {
-      const key = ctx.args[0].replace(new RegExp('^' + config.prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '').toLowerCase();
-      const c = ctx.commands.get(key); if (!c || c.ownerOnly) return ctx.reply('⚠️ Command not found.');
-      return ctx.reply(`📖 ${c.name}\n${c.description}\nUsage: ${config.prefix}${c.usage}\nAliases: ${c.aliases.join(', ') || 'none'}`);
-    }
-    const unique = [...new Set(ctx.commands.values())].filter(c => !c.ownerOnly);
-    const groups = {};
-    for (const c of unique) (groups[c.category] ||= []).push(c.name);
-    const sections = Object.entries(groups).map(([cat, names]) => `${cat.toUpperCase()}: ${names.map(x => config.prefix + x).join(', ')}`).join('\n');
-    await sendBanner(ctx, `👋 ${ctx.msg.pushName || 'User'}\nPrefix: ${config.prefix}\nUptime: ${elapsed(process.uptime())}\nCommands: ${unique.length}\n${sections}\nUse ${config.prefix}help <command> for details.`);
-  }),
   cmd('ping', ['speed'], 'Measure the response time.', 'ping', async ctx => {
     const start = Date.now(); await ctx.reply('🏓 Measuring…'); await ctx.reply(`🏓 Send acknowledgement time: ${Date.now() - start} ms.`);
   }),
@@ -76,7 +61,9 @@ const commands = [
   cmd('profile', ['me', 'whoami', 'id', 'myid'], 'Show your stored profile.', 'profile', async ctx => {
     const user = await ctx.db.get(`user:${ctx.sender}`, {});
     const warns = ctx.group ? await ctx.db.get(`warn:${ctx.chat}:${ctx.sender}`, 0) : 'group-only';
-    const text = `👤 ${ctx.msg.pushName || 'User'}\nID: ${ctx.sender}\nLevel: ${user.level ?? 0}\nCoins: ${user.wallet ?? 0}\nWarnings: ${warns}`;
+    const ledger = await ctx.db.get('economy:ledger', {}), account = ledger?.[ctx.sender];
+    const xp = Number.isFinite(account?.xp) && account.xp >= 0 ? account.xp : 0;
+    const text = `👤 ${ctx.msg.pushName || 'User'}\nID: ${ctx.sender}\nLevel: ${Math.floor(Math.sqrt(xp/100))+1}\nWallet: ${account?.wallet ?? 0} virtual coins\nBank: ${account?.bank ?? 0} virtual coins\nWarnings: ${warns}`;
     try { const url = await ctx.sock.profilePictureUrl(ctx.sender, 'image'); if (!url) throw Error(); await ctx.sock.sendMessage(ctx.chat, { image: { url }, caption: ctx.box(text) }, { quoted: ctx.msg }); ctx.markReplied(); }
     catch { try { const image=await fs.readFile(path.join(root,'assets/default-pfp.jpg')); await ctx.sock.sendMessage(ctx.chat,{image,caption:ctx.box(`${text}\nUsing default profile picture.`)},{quoted:ctx.msg});ctx.markReplied(); } catch { await ctx.reply(`${text}\nProfile picture unavailable.`); } }
   }),

@@ -1,4 +1,3 @@
-const http = require('node:http');
 const crypto = require('node:crypto');
 const path = require('node:path');
 const pino = require('pino');
@@ -18,11 +17,7 @@ const groupGuards = require('./lib/group-guards');
 const activity = require('./lib/activity');
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
 let connected = false;
-const health = http.createServer((req, res) => {
-  if (req.url !== '/health') { res.writeHead(404); return res.end('Not found'); }
-  res.writeHead(connected ? 200 : 503, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ ok: connected, uptime: Math.floor(process.uptime()) }));
-});
+const health = require('./lib/health').createHealth({port:config.port});
 async function main() {
   if (!config.ownerNumber || !/^\d{6,15}$/.test(config.ownerNumber)) throw new Error('Set OWNER_NUMBER to 6–15 international digits.');
   const short = parseShortSession(config.sessionId);
@@ -31,29 +26,29 @@ async function main() {
   const tenantId = `${digest.slice(0,8)}-${digest.slice(8,12)}-${digest.slice(12,16)}-${digest.slice(16,20)}-${digest.slice(20)}`;
   const localDataFile = short ? path.join(__dirname,'database',`data-${short.id}.json`) : undefined;
   const db = await new Database(config.databaseUrl,localDataFile,{serviceUrl:config.databaseUrl ? '' : config.dataServiceUrl,serviceToken:config.dataServiceToken,allowDirectMongo:!!config.databaseUrl || config.allowDirectMongo,tenantId}).connect();
-  let stopped = false, activeSocket = null, sessionSync = null, dataBackup = null, pairingClient = null;
+  let stopped = false, activeSocket = null, sessionSync = null, dataBackup = null, pairingClient = null, stopReminders = () => {};
   if (short) {
     const client = pairingClient = new PairingClient(config.pairingApiUrl, config.sessionId);
     if (!config.databaseUrl && !config.dataServiceUrl) {
       dataBackup = new DataBackup(db, client, {clearCache: require('./lib/group-events').clearAntideleteCache, notify: async text => {if (!connected || !activeSocket) return false; await activeSocket.sendMessage(`${config.ownerNumber}@s.whatsapp.net`, {text}); return true;}});
-      await dataBackup.start(); db.backupController = dataBackup;
+      db.backupController = dataBackup;
     }
     db.pairingClient = client;
-    sessionSync = new SessionSync(client, db, {onError: code => { db.lastError = code; }, onLost: () => {
-      stopped = true; connected = false;
+    sessionSync = new SessionSync(client, db, {onContention: () => { console.warn('Session is still in use. Waiting for the previous bot to stop; check for duplicate deployments.'); health.start(); }, onError: code => { db.lastError = code; }, onLost: () => {
+      stopped = true; connected = false; health.setConnected(false); stopReminders();
       console.error('Session lease lost. The bot has stopped to prevent duplicate instances.');
       try { activeSocket?.end(); } catch {}
     }});
-    try { await sessionSync.start(); } catch (e) { if (dataBackup) {dataBackup.closed=true;clearTimeout(dataBackup.timer);db.onChange=null;} await db.close(); throw e; }
+    try { await sessionSync.start(); if(dataBackup)await dataBackup.start(); } catch (e) { if (dataBackup) {dataBackup.closed=true;clearTimeout(dataBackup.timer);db.onChange=null;} await db.close(); throw e; }
   }
   const storedPrefix=await db.get('settings:prefix',config.prefix);if(typeof storedPrefix==='string'&&/^[.!#$%&?~]{1,3}$/.test(storedPrefix))config.prefix=storedPrefix;
-  db.stopAfterDelete = () => { stopped = true; if (sessionSync) { sessionSync.closed = true; sessionSync.stopTimers(); } if (dataBackup) { dataBackup.closed = true; clearTimeout(dataBackup.timer); db.onChange = null; } setTimeout(() => { try { activeSocket?.end(); } catch {} }, 100); };
+  db.stopAfterDelete = () => { stopped = true; connected = false; stopReminders(); health.setConnected(false); health.markNotReady(); if (sessionSync) { sessionSync.closed = true; sessionSync.stopTimers(); } if (dataBackup) { dataBackup.closed = true; clearTimeout(dataBackup.timer); db.onChange = null; } setTimeout(() => { try { activeSocket?.end(); } catch {} }, 100); };
   const auth = await createSession(db, sessionSync ? '' : config.sessionId, {onAuthChange: () => sessionSync?.changed()});
   const commands = loadCommands();
   await gameState.cleanup(db);
   const gameCleanup = setInterval(() => gameState.cleanup(db).catch(err => console.error('Game cleanup failed:', err.message)), 30000);
   gameCleanup.unref();
-  health.listen(config.port, '0.0.0.0', () => console.log(`Health server listening on ${config.port}`));
+  health.start();
   let shouldExport = !auth.state.creds.registered && !config.sessionId;
   const connect = () => {
     if (stopped) return;
@@ -72,7 +67,7 @@ async function main() {
           console.log(`Pairing code (keep private): ${await sock.requestPairingCode(config.pairingNumber)}`);
         }
         if (update.connection === 'open') {
-          connected = true; stopExtras(); stopExtras=extras.startTimers(sock,db); console.log('WhatsApp connected.'); await auth.saveCreds(); sessionSync?.changed(); await dataBackup?.notifyPending(); stopHeartbeat(); if (config.heartbeat && pairingClient) stopHeartbeat = require('./lib/heartbeat').startHeartbeat({client:pairingClient,db,sock,ownerNumber:config.ownerNumber});
+          connected = true; health.setConnected(true); stopReminders(); stopReminders=require('./lib/reminders').start(sock,db); stopExtras(); stopExtras=extras.startTimers(sock,db); console.log('WhatsApp connected.'); await auth.saveCreds(); sessionSync?.changed(); await dataBackup?.notifyPending(); stopHeartbeat(); if (config.heartbeat && pairingClient) stopHeartbeat = require('./lib/heartbeat').startHeartbeat({client:pairingClient,db,sock,ownerNumber:config.ownerNumber});
           if (shouldExport) {
             shouldExport = false;
             const id = await auth.exportSession();
@@ -82,7 +77,7 @@ async function main() {
           }
         }
         if (update.connection === 'close') {
-          connected = false; stopExtras(); stopHeartbeat(); const status = update.lastDisconnect?.error?.output?.statusCode;
+          connected = false; health.setConnected(false); stopReminders(); stopExtras(); stopHeartbeat(); const status = update.lastDisconnect?.error?.output?.statusCode;
           if (status === DisconnectReason.loggedOut) { console.error(`Session expired, pair again at ${config.pairingSiteUrl || '<PAIRING_SITE_URL>'}`); stopped = true; await sessionSync?.close({save:false}); }
           else { console.warn('Disconnected; retrying in 5 seconds.'); setTimeout(connect, 5000); }
         }
@@ -92,6 +87,7 @@ async function main() {
       if (type !== 'notify') return;
       for (const msg of messages) (async () => {
         if(msg?.key?.remoteJid==='status@broadcast'){statuses.enqueue(msg);return;}
+        try { await require('./lib/afk').process(sock,msg,db); } catch(err) { console.error('AFK processing failed.'); }
         try { await activity.record(sock,msg,db); } catch(err) { console.error('Activity record failed:',err.message); }
         let deleted = false;
         try { deleted = await processIncoming(sock, msg, db); } catch (err) { console.error('Group processing error:', err.message); }
@@ -105,12 +101,14 @@ async function main() {
     sock.ev.on('group-participants.update', update => { (async()=>{await groupGuards.guard(sock,update,db);await participantsUpdate(sock,update,db);})().catch(err => console.error('Group event error:', err.message)); });
   };
   connect();
-  const shutdown = async () => { stopped = true; clearInterval(gameCleanup); health.close(); try { activeSocket?.end(); } catch {} try { await dataBackup?.close(); } catch { console.error('Settings backup failed during shutdown; local data retained.'); } try { await sessionSync?.close(); } catch { console.error('Session upload failed during shutdown; local snapshot retained.'); } await db.close(); process.exit(0); };
+  const shutdown = async () => { stopped = true; stopReminders(); clearInterval(gameCleanup); health.close(); try { activeSocket?.end(); } catch {} try { await dataBackup?.close(); } catch { console.error('Settings backup failed during shutdown; local data retained.'); } try { await sessionSync?.close(); } catch { console.error('Session upload failed during shutdown; local snapshot retained.'); } await db.close(); process.exit(0); };
   process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
 }
 main().catch(e => {
   if (e instanceof PairingError && e.status === 401) console.error(`Session expired, pair again at ${config.pairingSiteUrl || '<PAIRING_SITE_URL>'}`);
   else console.error('Startup failed:', e.message);
-  if (e instanceof PairingError && (!e.status || e.status === 409)) { console.error('Could not safely verify an exclusive session lease. Waiting 60 seconds before exit.'); setTimeout(() => { process.exitCode = 1; }, 60000); }
-  else process.exitCode = 1;
+  health.markNotReady();
+  const finish = () => { health.close(); process.exitCode = 1; };
+  if (e instanceof PairingError && (!e.status || e.status === 409)) { console.error('Could not safely verify an exclusive session lease. Waiting 60 seconds before exit.'); setTimeout(finish, 60000); }
+  else finish();
 });

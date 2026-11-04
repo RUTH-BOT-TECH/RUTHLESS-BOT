@@ -30,7 +30,18 @@ async function handle(sock, msg, commands, db) {
   if (!text.startsWith(config.prefix)) { await require('./lib/chatbot').maybeReply(sock,msg,db,{chat,group,sender,alt,owner,text});return; }
   const parts = text.slice(config.prefix.length).trim().split(/\s+/);
   const name = (parts.shift() || '').toLowerCase();
-  const command = commands.get(name); if (!command) return;
+  const command = commands.get(name);
+  if (!command) {
+    // Avoid treating punctuation-only messages as commands or flooding a busy chat.
+    if (!/^[a-z0-9][a-z0-9-]{0,39}$/.test(name)) return;
+    try {
+      const resolved=await phoneJid(sock,sender,alt) || sender;
+      if (group && !owner && (await db.get(`group:${chat}:ban:${sender}`,false) || await db.get(`group:${chat}:ban:${resolved}`,false))) return;
+      if (await checkCooldown(db,resolved,'unknown-command',10)) return;
+      await sock.sendMessage(chat,{text:box(`⚠️ Command not available yet. Use ${config.prefix}menu to see available commands.`)},{quoted:msg});
+    } catch { console.error('Could not send unknown-command reply.'); }
+    return;
+  }
   let replied = false;
   const reply = async (text, options = {}) => { replied = true; return sock.sendMessage(chat, { text: box(text), ...options }, { quoted: msg }); };
   try {

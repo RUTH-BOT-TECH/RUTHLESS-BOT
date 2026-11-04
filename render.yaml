@@ -2,9 +2,9 @@ services:
   - type: web
     name: ruthless-bot
     runtime: node
-    buildCommand: npm install
+    buildCommand: ONNXRUNTIME_NODE_INSTALL=skip npm ci
     startCommand: node index.js
-    healthCheckPath: /health
+    healthCheckPath: /ready
     envVars:
       - key: OWNER_NUMBER
         sync: false

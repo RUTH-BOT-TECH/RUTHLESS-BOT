@@ -1,7 +1,7 @@
 require('dotenv').config();
 const env = process.env;
 module.exports = {
-  botName: env.BOT_NAME || 'Ruthless', prefix: env.PREFIX || '.',
+  botName: env.BOT_NAME || 'Ruthless', tagline: env.BOT_TAGLINE || env.BOT_NAME || 'Ruthless', prefix: env.PREFIX || '.',
   ownerNumber: (env.OWNER_NUMBER || '').replace(/\D/g, ''),
   pairingNumber: (env.PAIRING_NUMBER || '').replace(/\D/g, ''),
   mode: env.MODE === 'self' ? 'self' : 'public',
