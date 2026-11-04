@@ -8,16 +8,8 @@ const defaults = { category: 'general', ownerOnly: false, adminOnly: false, grou
 const cmd = (name, aliases, description, usage, run, extra = {}) => ({ ...defaults, name, aliases, description, usage, run, ...extra });
 const usage = (ctx, text, example) => ctx.reply(`⚠️ Usage: ${config.prefix}${text}\nExample: ${config.prefix}${example}`);
 const elapsed = seconds => `${Math.floor(seconds / 86400)}d ${Math.floor(seconds % 86400 / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
-async function banner() {
-  const dir = path.join(root, 'assets/menus');
-  const files = (await fs.readdir(dir).catch(() => [])).filter(f => /\.(jpe?g|png)$/i.test(f));
-  const file = files.length ? path.join(dir, files[Math.floor(Math.random() * files.length)]) : path.join(root, 'assets/menu.jpg');
-  try { return await fs.readFile(file); } catch { return null; }
-}
 async function sendBanner(ctx, text) {
-  const image = await banner();
-  if (!image) return ctx.reply(text);
-  await ctx.sock.sendMessage(ctx.chat, { image, caption: ctx.box(text) }, { quoted: ctx.msg }); ctx.markReplied();
+  await require('../../lib/event-images').send({sock:ctx.sock,db:ctx.db,chat:ctx.chat,event:'menu',user:ctx.sender,text:ctx.box(text),quoted:ctx.msg});ctx.markReplied();
 }
 async function fetchJson(url) {
   const r = await fetch(url, { headers: { 'User-Agent': 'Ruthless-MD/1.0', Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
@@ -48,7 +40,7 @@ const commands = [
     const start = Date.now(); let groups = 'unavailable';
     try { groups = Object.keys(await ctx.sock.groupFetchAllParticipating()).length; } catch {}
     const users = (await ctx.db.list('seen:')).length;
-    await sendBanner(ctx, `✅ Online\nVersion: ${version}\nUptime: ${elapsed(process.uptime())}\nStatus collection: ${Date.now() - start} ms\nMode: ${config.mode}\nCommands: ${new Set(ctx.commands.values()).size}\nGroups: ${groups}\nUsers observed: ${users}`);
+    await ctx.reply(`✅ Online\nVersion: ${version}\nUptime: ${elapsed(process.uptime())}\nStatus collection: ${Date.now() - start} ms\nMode: ${config.mode}\nCommands: ${new Set(ctx.commands.values()).size}\nGroups: ${groups}\nUsers observed: ${users}`);
   }),
   cmd('owner', ['creator', 'contact', 'vcard'], 'Show the deployer’s owner contact and creator credit.', 'owner', async ctx => {
     if (!config.ownerNumber) return ctx.reply(`⚠️ OWNER_NUMBER is not configured.\nCreator credit: +${config.creator}`);
@@ -86,7 +78,7 @@ const commands = [
     const warns = ctx.group ? await ctx.db.get(`warn:${ctx.chat}:${ctx.sender}`, 0) : 'group-only';
     const text = `👤 ${ctx.msg.pushName || 'User'}\nID: ${ctx.sender}\nLevel: ${user.level ?? 0}\nCoins: ${user.wallet ?? 0}\nWarnings: ${warns}`;
     try { const url = await ctx.sock.profilePictureUrl(ctx.sender, 'image'); if (!url) throw Error(); await ctx.sock.sendMessage(ctx.chat, { image: { url }, caption: ctx.box(text) }, { quoted: ctx.msg }); ctx.markReplied(); }
-    catch { await ctx.reply(`${text}\nProfile picture unavailable.`); }
+    catch { try { const image=await fs.readFile(path.join(root,'assets/default-pfp.jpg')); await ctx.sock.sendMessage(ctx.chat,{image,caption:ctx.box(`${text}\nUsing default profile picture.`)},{quoted:ctx.msg});ctx.markReplied(); } catch { await ctx.reply(`${text}\nProfile picture unavailable.`); } }
   }),
   cmd('rate', ['review'], 'Rate the bot from 1 to 5.', 'rate <1-5>', async ctx => {
     if (ctx.args.length !== 1 || !/^[1-5]$/.test(ctx.args[0])) return usage(ctx, 'rate <1-5>', 'rate 5');

@@ -78,7 +78,7 @@ const commands = [
     const m = await ctx.sock.groupMetadata(ctx.chat); const admins = m.participants.filter(x => x.admin).length;
     const text = `👥 ${m.subject}\nDescription: ${m.desc || 'None'}\nCreator: ${m.owner || 'Unknown'}\nMembers: ${m.participants.length}\nAdmins: ${admins}\nCreated: ${m.creation ? new Date(m.creation*1000).toISOString().slice(0,10) : 'Unknown'}`;
     try { const url = await ctx.sock.profilePictureUrl(ctx.chat, 'image'); if (!url) throw Error(); await ctx.sock.sendMessage(ctx.chat,{image:{url},caption:ctx.box(text)},{quoted:ctx.msg}); ctx.markReplied(); }
-    catch { await ctx.reply(`${text}\nGroup picture unavailable.`); }
+    catch { try { const image=await require('node:fs/promises').readFile(require('node:path').join(__dirname,'../../assets/default-pfp.jpg'));await ctx.sock.sendMessage(ctx.chat,{image,caption:ctx.box(`${text}\nUsing default group picture.`)},{quoted:ctx.msg});ctx.markReplied(); }catch{await ctx.reply(`${text}\nGroup picture unavailable.`);} }
   }, publicCmd),
   cmd('grouplink', [], 'Get the group invite link.', 'grouplink', async ctx => { if (!await groupContext(ctx,{botAdmin:true})) return; await ctx.reply(`🔗 https://chat.whatsapp.com/${await ctx.sock.groupInviteCode(ctx.chat)}`); }),
   cmd('revoke', ['resetlink'], 'Reset the group invite link.', 'revoke', async ctx => { if (!await groupContext(ctx,{botAdmin:true})) return; await ctx.reply(`✅ New invite: https://chat.whatsapp.com/${await ctx.sock.groupRevokeInvite(ctx.chat)}`); }),
@@ -201,4 +201,9 @@ for (const name of ['antibot','antistatus','antiporn']) commands.push(cmd(name, 
   }
   await ctx.db.set(key,mode==='on'?'delete':mode);
   await ctx.reply(`✅ ${name}: ${mode==='on'?'delete':mode}.${name==='antiporn'?' Image scanning is probabilistic and may miss content.':''}`);
+}));
+
+commands.push(cmd('eventimg', [], 'Enable or disable menu, welcome and goodbye images for this group.', 'eventimg on|off', async ctx => {
+ const key=groupKey(ctx.chat,'eventimg'),mode=ctx.args[0];if(!mode)return ctx.reply(`ℹ️ eventimg: ${(await ctx.db.get(key,true))?'on':'off'}.`);
+ if(ctx.args.length!==1||!['on','off'].includes(mode))return usage(ctx,'eventimg on|off','eventimg off');await ctx.db.set(key,mode==='on');await ctx.reply(`✅ Event images ${mode}.`);
 }));

@@ -11,11 +11,13 @@
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.2",
     "@imgly/background-removal-node": "1.4.5",
     "@napi-rs/canvas": "1.1.0",
     "@tensorflow/tfjs": "4.22.0",
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "cheerio": "1.1.2",
+    "chess.js": "1.4.0",
     "dotenv": "16.6.1",
     "emoji-mixer": "2.2.1",
     "ffmpeg-static": "5.3.0",
@@ -26,6 +28,10 @@
     "nsfwjs": "4.3.0",
     "pino": "9.9.5",
     "sharp": "0.35.5",
+    "tesseract.js": "6.0.1",
     "undici": "7.30.1"
+  },
+  "devDependencies": {
+    "ws": "8.22.1"
   }
 }
