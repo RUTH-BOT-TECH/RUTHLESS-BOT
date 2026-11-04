@@ -1,0 +1,29 @@
+name: Bot uptime
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake bot and check WhatsApp connection
+        env:
+          HEALTH_URL: https://venomtempmailbot-bmyp.onrender.com/health
+        run: |
+          for attempt in 1 2 3; do
+            if response=$(curl --fail --silent --show-error --connect-timeout 10 --max-time 90 "$HEALTH_URL") && \
+               printf '%s' "$response" | jq -e '.ok == true' >/dev/null 2>&1; then
+              echo 'Bot health endpoint reports WhatsApp connected.'
+              exit 0
+            fi
+            echo "Bot health check attempt $attempt did not report a connected session."
+            if [ "$attempt" -lt 3 ]; then sleep 15; fi
+          done
+          echo 'Bot did not report a connected session; check Render logs.' >&2
+          exit 1

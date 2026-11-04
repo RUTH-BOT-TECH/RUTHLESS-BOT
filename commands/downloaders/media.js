@@ -17,8 +17,7 @@ const commands=[];
 function getError(e) {
  if(e.message.includes('50 MB')||e.message.includes('too large'))return '⚠️ This file is too large or could not be downloaded within the 50 MB limit.';
  if(e.message.includes('busy'))return '⏳ Downloader is busy. Try again shortly.';
- if(e.message.includes('not installed')||e.code==='ENOENT')return '⚠️ yt-dlp or Python is not installed on this bot. The owner must follow the setup instructions.';
- return '⚠️ Could not download, try another link. Source: yt-dlp.';
+ return '⚠️ Download unavailable right now. Please try another public link later.';
 }
 async function sendResult(ctx,link,site,mode,requested) {
  try {
@@ -26,10 +25,10 @@ async function sendResult(ctx,link,site,mode,requested) {
   let data=result.data, ext=result.ext;
   if(mode!=='audio' && !['mp4'].includes(ext)) {data=await convert(data,'mp4',['-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac','-movflags','+faststart']);ext='mp4';}
   if(data.length>LIMIT)throw Error('Media exceeds 50 MB');
-  const caption=ctx.box(`✅ ${result.title||requested||'Downloaded media'}\nSize: ${(data.length/1024/1024).toFixed(2)} MB\nSource: ${site} via yt-dlp`);
+  const caption=ctx.box(`✅ ${result.title||requested||'Downloaded media'}\nSize: ${(data.length/1024/1024).toFixed(2)} MB\nSource: ${site} via ${result.source||'yt-dlp'}`);
   if(mode==='audio') {
    await ctx.sock.sendMessage(ctx.chat,{audio:data,mimetype:'audio/mpeg'},{quoted:ctx.msg});
-   await ctx.reply(`🎵 ${result.title||requested||'Downloaded audio'}\nSize: ${(data.length/1024/1024).toFixed(2)} MB\nSource: ${site} via yt-dlp`);
+   await ctx.reply(`🎵 ${result.title||requested||'Downloaded audio'}\nSize: ${(data.length/1024/1024).toFixed(2)} MB\nSource: ${site} via ${result.source||'yt-dlp'}`);
   }else if(mode==='document')await ctx.sock.sendMessage(ctx.chat,{document:data,mimetype:'video/mp4',fileName:'video.mp4',caption},{quoted:ctx.msg});
   else await ctx.sock.sendMessage(ctx.chat,{video:data,mimetype:'video/mp4',caption},{quoted:ctx.msg});
   ctx.markReplied();
@@ -42,12 +41,12 @@ for(const [name,aliases,site,mode] of specs)commands.push(make(name,aliases,`Dow
 for(const [name,aliases,mode] of [['ytplay',['play','song'],'audio'],['video',[],'video']])commands.push(make(name,aliases,'Search YouTube and download the first result using yt-dlp.',`${name} <search terms>`,async ctx=>{
  const query=ctx.args.join(' ').trim();if(!query||query.length>200)return ctx.reply(`⚠️ Usage: ${config.prefix}${name} <search terms>\nExample: ${config.prefix}${name} Me at the zoo`);
  await ctx.reply('⏳ Searching and downloading…');
- try{const [found]=await dl.searchYoutube(query,1);if(!found)return ctx.reply('⚠️ No YouTube results found.');await sendResult(ctx,found.url,'youtube',mode,found.title);}catch(e){await ctx.reply(getError(e));}
+ try{if(dl.validLink(query,'youtube'))return await sendResult(ctx,query,'youtube',mode);const [found]=await dl.searchYoutube(query,1);if(!found)return ctx.reply('⚠️ No YouTube results found.');await sendResult(ctx,found.url,'youtube',mode,found.title);}catch(e){await ctx.reply(getError(e));}
 }));
 commands.push(make('yts',['ytsearch'],'Search YouTube for up to five results using yt-dlp.','yts <search terms>',async ctx=>{
  const query=ctx.args.join(' ').trim();if(!query||query.length>200)return ctx.reply(`⚠️ Usage: ${config.prefix}yts <search terms>\nExample: ${config.prefix}yts Me at the zoo`);
  await ctx.reply('⏳ Searching YouTube…');
- try{const result=await dl.searchYoutube(query,5);if(!result.length)return ctx.reply('⚠️ No YouTube results found.');await ctx.reply(`🔎 YouTube results\n${result.map((r,i)=>`${i+1}. ${r.title}\n${r.url}`).join('\n')}\nSource: yt-dlp`);}catch(e){await ctx.reply(getError(e));}
+ try{const result=await dl.searchYoutube(query,5);if(!result.length)return ctx.reply('⚠️ No YouTube results found.');await ctx.reply(`🔎 YouTube results\n${result.map((r,i)=>`${i+1}. ${r.title}\n${r.url}`).join('\n')}\nSource: ${result.source||'yt-dlp'}`);}catch(e){await ctx.reply(getError(e));}
 }));
 module.exports=commands;
 module.exports.bySite=bySite;

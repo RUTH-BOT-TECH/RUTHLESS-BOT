@@ -122,7 +122,7 @@ module.exports = {
     // Preserve .help <command>, including command aliases, separately from .menu <category>.
     if (ctx.invoked === 'help' && ctx.args.length === 1) {
       const command = ctx.commands.get(query);
-      if (!command || command.ownerOnly) return sendText(ctx, close([...border('COMMAND HELP'), '│ ➤ Command not found.']));
+      if (!command || (command.ownerOnly && !ctx.owner)) return sendText(ctx, close([...border('COMMAND HELP'), '│ ➤ Command not found.']));
       const aliases = (command.aliases || []).map(alias => prefix + alias).join(', ') || 'none';
       return sendText(ctx, close([...border('COMMAND HELP'), `│ ➤ ${prefix}${command.name}`, `│ ➤ ${command.description}`, `│ ➤ Usage: ${prefix}${command.usage}`, `│ ➤ Aliases: ${aliases}`]));
     }

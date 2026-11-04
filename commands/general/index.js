@@ -13,9 +13,6 @@ async function fetchJson(url) {
   if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json();
 }
 function timezone(args) { const tz = args.join(' ') || config.timezone; try { new Intl.DateTimeFormat('en', { timeZone: tz }).format(); return tz; } catch { return null; } }
-function githubRepo() {
-  try { const u = new URL(config.repoUrl); const parts = u.pathname.split('/').filter(Boolean); if (u.hostname !== 'github.com' || parts.length !== 2 || !/^[\w.-]+$/.test(parts[0]) || !/^[\w.-]+$/.test(parts[1])) return null; return parts.map(encodeURIComponent).join('/').replace(/\.git$/, ''); } catch { return null; }
-}
 const commands = [
   cmd('ping', ['speed'], 'Measure the response time.', 'ping', async ctx => {
     const start = Date.now(); await ctx.reply('🏓 Measuring…'); await ctx.reply(`🏓 Send acknowledgement time: ${Date.now() - start} ms.`);
@@ -25,7 +22,7 @@ const commands = [
     const start = Date.now(); let groups = 'unavailable';
     try { groups = Object.keys(await ctx.sock.groupFetchAllParticipating()).length; } catch {}
     const users = (await ctx.db.list('seen:')).length;
-    await ctx.reply(`✅ Online\nVersion: ${version}\nUptime: ${elapsed(process.uptime())}\nStatus collection: ${Date.now() - start} ms\nMode: ${config.mode}\nCommands: ${new Set(ctx.commands.values()).size}\nGroups: ${groups}\nUsers observed: ${users}`);
+    await ctx.reply(`✅ Online\nVersion: ${version}\nUptime: ${elapsed(process.uptime())}\nStatus collection: ${Date.now() - start} ms\nMode: ${await require('../../lib/bot-mode').current(ctx.db)}\nCommands: ${new Set(ctx.commands.values()).size}\nGroups: ${groups}\nUsers observed: ${users}`);
   }),
   cmd('owner', ['creator', 'contact', 'vcard'], 'Show the deployer’s owner contact and creator credit.', 'owner', async ctx => {
     if (!config.ownerNumber) return ctx.reply(`⚠️ OWNER_NUMBER is not configured.\nCreator credit: +${config.creator}`);
@@ -46,10 +43,9 @@ const commands = [
     const n = clean(ctx.sock.user?.id); if (!/^\d{6,15}$/.test(n)) return ctx.reply('⚠️ Bot phone number is unavailable.');
     return ctx.reply(`🔗 https://wa.me/${n}`);
   }),
-  cmd('changelog', ['news'], 'Fetch latest GitHub release notes.', 'changelog', async ctx => {
-    const repo = githubRepo(); if (!repo) return ctx.reply('⚠️ Set REPO_URL to a GitHub repository to use this command.');
-    try { const r = await fetchJson(`https://api.github.com/repos/${repo}/releases/latest`); await ctx.reply(`📰 ${r.name || r.tag_name}\n${(r.body || 'No release notes provided.').slice(0, 2000)}\nSource: GitHub ${r.html_url}`); }
-    catch { await ctx.reply('⚠️ Could not fetch release notes from GitHub. Check the repository and try again later.'); }
+  cmd('changelog', ['news','changelogs'], 'Show the latest GitHub release notes or recent commits.', 'changelog', async ctx => {
+    try { await ctx.reply(await require('../../lib/bot-updates').notes()); }
+    catch { await ctx.reply('⚠️ Could not fetch release notes or commits from GitHub. Check the repository and try again later.'); }
   }),
   cmd('language', ['setlang'], 'Save your default language for future translation commands.', 'language <code>', async ctx => {
     const lang = ctx.args[0];

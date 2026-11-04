@@ -30,6 +30,8 @@ test('local WebSocket transport exercises command replies, images, OCR, and fail
   out=await request('.ocr');assert.match(out.at(-1).text,/Reply to or caption an image/);
   const audio=await fs.readFile(path.join(__dirname,'fixtures/english-speech.ogg'));out=await request('.stt',null,audio);assert.match(out.at(-1).text,/Hello Ruthless/i);
   const a='234800000001@s.whatsapp.net',b='234800000002@s.whatsapp.net',group=(sender,mention)=>({group:true,sender,mention});
+  {const cfg=require('../config'),old=cfg.ownerNumber;try{cfg.ownerNumber='234800000001';out=await request('.private',null,null,group(a));assert.match(out.at(-1).text,/Private mode/);out=await request('.slots',null,null,group(b));assert.equal(out.length,0);assert.equal(out.reactions.length,0);out=await request('.ownermenu',null,null,group(a));assert.match(out.at(-1).text,/\.update/);out=await request('.public',null,null,group(a));assert.match(out.at(-1).text,/Public mode/);}finally{cfg.ownerNumber=old;await db.del('settings:mode');}}
+
   out=await request('.eventimg off',null,null,group(a));assert.match(out.at(-1).text,/Event images off/);out=await request('.menu',null,null,group(a));assert.ok(out.at(-1).text);assert.ok(!out.at(-1).image);out=await request('.eventimg on',null,null,group(a));out=await request('.menu',null,null,group(a));assert.ok(out.at(-1).image.base64);
   out=await request('.addnote socket test',null,null,group(a));assert.match(out.at(-1).text,/Note saved/);
   await db.del(`cooldown:${a}:note`);out=await request('.notes',null,null,group(a));assert.match(out.at(-1).text,/socket test/);
@@ -43,6 +45,9 @@ test('local WebSocket transport exercises command replies, images, OCR, and fail
   out=await request('.rot13 hello',null,null,group(a));assert.match(out.at(-1).text,/uryyb/);
   out=await request('.num2roman 1994',null,null,group(a));assert.match(out.at(-1).text,/MCMXCIV/);
   out=await request('.daily',null,null,group(a));assert.match(out.at(-1).text,/500 virtual coins/);
+  out=await request('.buy seed 2',null,null,group(a));assert.match(out.at(-1).text,/Bought 2 seed/);
+  out=await request('.plant 2',null,null,group(a));assert.match(out.at(-1).text,/Planted 2/);
+  out=await request('.farm',null,null,group(a));assert.match(out.at(-1).text,/2 corn crop/);
   out=await request('.transfer @234800000002 200',null,null,group(a,b));assert.match(out.at(-1).text,/Transferred 200/);
   out=await request('.balance',null,null,group(b));assert.match(out.at(-1).text,/Wallet: 200/);
   out=await request('.calc (2+3)*4');assert.match(out.at(-1).text,/= 20/);
@@ -51,8 +56,13 @@ test('local WebSocket transport exercises command replies, images, OCR, and fail
   out=await request('.trim 0 1',null,await fs.readFile(path.join(__dirname,'fixtures/english-speech.ogg')));assert.equal(out.at(-1).mimetype,'audio/mpeg');
   {const previous=global.fetch;try{global.fetch=async()=>Response.json([{word:'joyful'}]);out=await request('.synonym happy');assert.match(out.at(-1).text,/joyful/);}finally{global.fetch=previous;}}
   out=await request('.unit 1 km m',null,null,group(a));assert.match(out.at(-1).text,/1000 m/);
+  out=await request('.km2miles 1',null,null,group(a));assert.match(out.at(-1).text,/0\.621371/);
+  {const old=global.fetch;try{global.fetch=async()=>new Response('<rss><channel><item><title>New science discovery</title><link>https://news.google.com/articles/test</link></item></channel></rss>');out=await request('.science-news NG',null,null,group(a));assert.match(out.at(-1).text,/New science discovery/);}finally{global.fetch=old;}}
+  out=await request('.area 1 acre m2',null,null,group(a));assert.match(out.at(-1).text,/4046\.8564224/);
   out=await request('.remind 10s websocket test',null,null,group(a));assert.match(out.at(-1).text,/Reminder saved/);
   out=await request('.wordle',null,null,group(a));assert.match(out.at(-1).text,/five-letter/);
+  out=await request('.guesscapital',null,null,group(a));assert.match(out.at(-1).text,/Three attempts/);
+  const quiz=await db.get(`game:personal:guesscapital:987654321@g.us:${a}`);out=await request('.guesscapital '+quiz.answer,null,null,group(a));assert.match(out.at(-1).text,/Correct/);
   const personalWordle=await db.get(`game:personal:wordle:987654321@g.us:${a}`);out=await request('.wordle '+personalWordle.answer,null,null,group(a));assert.match(out.at(-1).text,/Solved/);
   {const profiles=require('../lib/public-profiles'),previous=profiles.minecraft;try{profiles.minecraft=async()=>({name:'Notch',id:'069a79f444e94726a5befca90e38aaf5'});out=await request('.mcuser Notch',null,null,group(a));assert.match(out.at(-1).text,/Mojang/);}finally{profiles.minecraft=previous;}}
   {const env=require('../lib/environment-info'),previous=env.json;try{env.json=async()=>({type:'FeatureCollection',features:[]});out=await request('.earthquake',null,null,group(a));assert.match(out.at(-1).text,/No events/);}finally{env.json=previous;}}

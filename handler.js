@@ -26,7 +26,7 @@ async function handle(sock, msg, commands, db) {
   if (!msg.key.fromMe) await presence(sock, chat, db);
   const text = getText(msg.message).trim();
   const storedPrefix=await db.get('settings:prefix',config.prefix);if(typeof storedPrefix==='string'&&/^[.!#$%&?~]{1,3}$/.test(storedPrefix))config.prefix=storedPrefix;
-  if (config.mode === 'self' && !owner && !msg.key.fromMe) return;
+  if (await require('./lib/bot-mode').current(db) === 'self' && !owner && !msg.key.fromMe) return;
   if (!text.startsWith(config.prefix)) { await require('./lib/chatbot').maybeReply(sock,msg,db,{chat,group,sender,alt,owner,text});return; }
   const parts = text.slice(config.prefix.length).trim().split(/\s+/);
   const name = (parts.shift() || '').toLowerCase();

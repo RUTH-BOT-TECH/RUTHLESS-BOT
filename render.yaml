@@ -2,7 +2,7 @@ services:
   - type: web
     name: ruthless-bot
     runtime: node
-    buildCommand: ONNXRUNTIME_NODE_INSTALL=skip npm ci
+    buildCommand: ONNXRUNTIME_NODE_INSTALL=skip npm ci && sh scripts/install-youtube.sh
     startCommand: node index.js
     healthCheckPath: /ready
     envVars:

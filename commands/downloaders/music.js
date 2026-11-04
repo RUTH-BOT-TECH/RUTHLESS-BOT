@@ -35,7 +35,7 @@ async function match(ctx,track) {
   if(!chosen)return ctx.reply('⚠️ Could not find a sufficiently close YouTube match. Try another track.');
   await ctx.reply(`🎧 Matched audio: ${chosen.title}\nThis is not the original Spotify or Deezer file.`);
   await sendResult(ctx,chosen.url,'youtube','audio',chosen.title);
- }catch(e){await ctx.reply(e.message==='yt-dlp is not installed'?'⚠️ yt-dlp is not installed. Ask the owner to follow setup instructions.':'⚠️ Could not find or download a match. Try again later.');}
+ }catch(e){await ctx.reply('⚠️ Could not find or download a match. Try again later.');}
 }
 const commands=[
  make('spotify',['spotifydl'],'Find a matching track using Spotify metadata, iTunes and YouTube.','spotify <Spotify track URL>',async ctx=>{

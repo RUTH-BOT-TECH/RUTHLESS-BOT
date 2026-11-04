@@ -1,0 +1,14 @@
+.git
+node_modules
+.venv
+.env
+.env.*
+!.env.example
+session
+database
+logs
+*.log
+*.cookies
+cookies.txt
+__pycache__
+.cache
