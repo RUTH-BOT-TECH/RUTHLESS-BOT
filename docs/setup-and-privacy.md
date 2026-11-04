@@ -5,9 +5,9 @@
 ## Pairing-service operator setup
 
 1. Create a Render Web Service from this repository with root directory `pairing-site`, build `npm install`, and start `node server.js`.
-2. Set `MONGO_URL` to the operator's private MongoDB connection string and `DATA_KEY` to a key generated privately by `node pairing-site/scripts/gen-key.js`. Never share these with bot deployers or put them in Git.
+2. Set `PAIRING_DATABASE_URL` to the operator's private Supabase PostgreSQL **session-pooler** connection string, including the database password and `sslmode=require`. This is the pairing service environment, not the bot's `DATABASE_URL`. Alternatively, omit `PAIRING_DATABASE_URL` and set `MONGO_URL` for a private MongoDB database. Set `DATA_KEY` to a key generated privately by `node pairing-site/scripts/gen-key.js`. Never share these with bot deployers or put them in Git. If both database variables are set, PostgreSQL is used; an invalid PostgreSQL configuration never silently falls back to MongoDB. Use a database role with only the privileges needed for the private `ruthless_pairing` schema where practical.
 3. Render provides the service's HTTPS URL after creation. Set `PAIRING_SITE_URL` to that exact origin (no path or trailing slash is needed) in the service environment and redeploy. Render supplies `PORT`; the server cannot start pairing without its URL.
-4. Open `/health` and perform QR and pairing-code tests using a disposable WhatsApp account. Publish the site link only after confirming delivery and restoring the bot session. The account and MongoDB must be operator-controlled, not exposed here.
+4. Open `/health` and perform QR and pairing-code tests using a disposable WhatsApp account. Publish the site link only after confirming delivery and restoring the bot session. The account and database must be operator-controlled, not exposed here.
 
 ## Legacy notes and feature reference
 
@@ -21,7 +21,7 @@
 
 Node.js 20.19 or newer is required. Set `OWNER_NUMBER` and `SESSION_ID` in the bot environment; legacy non-portable short IDs also need `PAIRING_API_URL` and `PAIRING_SITE_URL`. Use international digits for the owner; the API URL must be the trusted HTTPS origin. The owner chooses `HEARTBEAT=on` to opt in; it defaults to off. Run `npm install` and `npm start`. `/health` returns 200 when connected, 503 otherwise.
 
-Keep the pairing server's `MONGO_URL` and `DATA_KEY` out of bot environments. With no `DATABASE_URL`, settings are kept in local JSON and backed up to the pairing service for short IDs; an ephemeral host can lose local changes before upload. If you set `DATABASE_URL`, it must be **your own isolated database**, not shared credentials for a multi-tenant database. The bot uses one tenant document, but MongoDB credentials themselves grant whatever permissions the database user has. Existing legacy records are not migrated. The older `DATA_SERVICE_URL`/`DATA_SERVICE_TOKEN` adapter remains available separately; do not configure it alongside `DATABASE_URL`.
+Keep the pairing server's `MONGO_URL`, `PAIRING_DATABASE_URL`, and `DATA_KEY` out of bot environments. With no `DATABASE_URL`, settings are kept in local JSON and backed up to the pairing service for short IDs; an ephemeral host can lose local changes before upload. If you set `DATABASE_URL`, it must be **your own isolated database**, not shared credentials for a multi-tenant database. The bot uses one tenant document, but MongoDB credentials themselves grant whatever permissions the database user has. Existing legacy records are not migrated. The older `DATA_SERVICE_URL`/`DATA_SERVICE_TOKEN` adapter remains available separately; do not configure it alongside `DATABASE_URL`.
 
 The legacy long snapshot `SESSION_ID` remains supported as a bootstrap for an empty store. It does not gain short-ID sync or remote settings backups. Direct bot-side pairing with `PAIRING_NUMBER` remains a legacy fallback and prints its pairing code to private server logs.
 

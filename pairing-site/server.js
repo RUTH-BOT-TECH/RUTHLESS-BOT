@@ -31,6 +31,24 @@ function createServer({store,pairings,render=false,releaseChecker=require('./lib
   return send(res,404,{error:'Not found'});
  }catch(e){return send(res,e.status===413?413:400,{error:e.status===413?'Request too large':'Invalid request or service unavailable'});}});
 }
-async function main(){const key=dataKey(process.env.DATA_KEY),uri=process.env.MONGO_URL,siteUrl=publicOrigin(process.env.PAIRING_SITE_URL);if(!uri)throw Error('Missing server configuration');const client=new MongoClient(uri,{serverSelectionTimeoutMS:10000});await client.connect();const store=new Store(client.db(),key);await store.indexes();const {Pairings}=require('./lib/pairing');const pairings=new Pairings(store,{siteUrl});const server=createServer({store,pairings,render:process.env.RENDER==='true'});server.listen(Number(process.env.PORT||3000),'0.0.0.0',()=>console.log('Pairing service listening.'));const stop=()=>server.close(()=>client.close().finally(()=>process.exit(0)));process.once('SIGTERM',stop);process.once('SIGINT',stop);}
+async function main(){
+ const key=dataKey(process.env.DATA_KEY),siteUrl=publicOrigin(process.env.PAIRING_SITE_URL);let client,store,close;
+ try{
+ if(process.env.PAIRING_DATABASE_URL){
+  const {Pool}=require('pg'),{PostgresStore}=require('./lib/postgres-store');
+  client=new Pool({connectionString:process.env.PAIRING_DATABASE_URL,connectionTimeoutMillis:10000});close=()=>client.end();
+  client.on('error',()=>console.error('Pairing database connection interrupted.'));
+  await client.query('SELECT 1');store=new PostgresStore(client,key);
+ }else{
+  const uri=process.env.MONGO_URL;if(!uri)throw Error('Missing server configuration');
+  client=new MongoClient(uri,{serverSelectionTimeoutMS:10000});close=()=>client.close();await client.connect();store=new Store(client.db(),key);
+ }
+ await store.indexes();
+ let maintenance;if(store.cleanup){await store.cleanup();maintenance=setInterval(()=>store.cleanup().catch(()=>console.error('Pairing database maintenance failed.')),24*60*60*1000);maintenance.unref();}
+ const {Pairings}=require('./lib/pairing');const pairings=new Pairings(store,{siteUrl});const server=createServer({store,pairings,render:process.env.RENDER==='true'});
+ server.listen(Number(process.env.PORT||3000),'0.0.0.0',()=>console.log('Pairing service listening.'));
+ const stop=()=>{if(maintenance)clearInterval(maintenance);server.close(()=>close().finally(()=>process.exit(0)));};process.once('SIGTERM',stop);process.once('SIGINT',stop);
+ }catch(e){if(close)await close().catch(()=>{});throw e;}
+}
 if(require.main===module)main().catch(()=>{console.error('Pairing service could not start. Check private configuration and database connectivity.');process.exitCode=1;});
 module.exports={createServer,ipFor};
