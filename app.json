@@ -1,0 +1,29 @@
+{
+  "name": "Ruthless MD Bot",
+  "description": "Self-hosted WhatsApp bot (experimental)",
+  "repository": "https://github.com/RUTH-BOT-TECH/RUTHLESS-BOT",
+  "env": {
+    "OWNER_NUMBER": {
+      "description": "Your WhatsApp number in international digits"
+    },
+    "SESSION_ID": {
+      "description": "Your private session ID"
+    },
+    "HEARTBEAT": {
+      "description": "Optional: on or off",
+      "value": "off",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+}
