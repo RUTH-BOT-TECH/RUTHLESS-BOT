@@ -90,7 +90,7 @@ async function main() {
         try { await require('./lib/afk').process(sock,msg,db); } catch(err) { console.error('AFK processing failed.'); }
         try { await activity.record(sock,msg,db); } catch(err) { console.error('Activity record failed:',err.message); }
         let deleted = false;
-        try { deleted = await processIncoming(sock, msg, db); } catch (err) { console.error('Group processing error:', err.message); }
+        try { deleted = await processIncoming(sock, msg, db, {commands}); } catch (err) { console.error('Group processing error:', err.message); }
         if (!deleted) {
           try { await processAutoDL(sock, msg, db); } catch (err) { console.error('Autodownload error:', err.message); }
           await handle(sock, msg, commands, db);

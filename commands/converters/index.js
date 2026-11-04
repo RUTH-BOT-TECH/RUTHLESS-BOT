@@ -1,7 +1,8 @@
 'use strict';
 const {boundedBody}=require('../../lib/public-files'),config=require('../../config');
 const common={category:'converters',ownerOnly:false,adminOnly:false,groupOnly:false,cooldown:2};
-const define=(name,aliases,description,usage,run)=>({...common,name,aliases,description,usage,run});
+const EXTRA_ALIASES={currency:['exchange'],crypto:['cryptoprice'],unit:['units'],timezone:['worldtime']};
+const define=(name,aliases,description,usage,run)=>({...common,name,aliases:[...aliases,...(EXTRA_ALIASES[name]||[])],description,usage,run});
 const units={mm:['length',.001],cm:['length',.01],m:['length',1],km:['length',1000],in:['length',.0254],ft:['length',.3048],yd:['length',.9144],mi:['length',1609.344],mg:['mass',.000001],g:['mass',.001],kg:['mass',1],oz:['mass',.028349523125],lb:['mass',.45359237],ml:['volume',.001],l:['volume',1],gal:['volume',3.785411784],s:['time',1],min:['time',60],h:['time',3600],day:['time',86400],c:['temperature',1],f:['temperature',1],k:['temperature',1]};
 function unit(amount,from,to){const a=units[from],b=units[to];if(!a||!b||a[0]!==b[0]||!Number.isFinite(amount))return null;let n=amount;if(a[0]==='temperature'){let c=from==='c'?amount:from==='f'?(amount-32)*5/9:amount-273.15;n=to==='c'?c:to==='f'?c*9/5+32:c+273.15;}else n=amount*a[1]/b[1];return Number.isFinite(n)?Number(n.toPrecision(12)):null;}
 async function json(url){const r=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(12000)});if(!r.ok){await r.body?.cancel();throw Error('Provider unavailable');}return JSON.parse((await boundedBody(r,1024*1024)).toString('utf8'));}

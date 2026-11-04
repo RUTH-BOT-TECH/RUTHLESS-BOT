@@ -1,7 +1,8 @@
 'use strict';
 const crypto=require('node:crypto'),{randomInt}=crypto,{withLock}=require('../../lib/game-lock'),game=require('../../lib/personal-games'),config=require('../../config');
 const common={category:'games',ownerOnly:false,adminOnly:false,groupOnly:false,cooldown:0};
-const cmd=(name,aliases,description,usage,run)=>({...common,name,aliases,description,usage,run});
+const EXTRA_ALIASES={slots:['slot'],fact:['funfact'],speedtype:['typing'],lovecalc:['compatibility']};
+const cmd=(name,aliases,description,usage,run)=>({...common,name,aliases:[...aliases,...(EXTRA_ALIASES[name]||[])],description,usage,run});
 const pick=a=>a[randomInt(a.length)];
 const WORDS=['APPLE','BEACH','BERRY','BRAIN','BREAD','BRICK','BROWN','CHAIR','CHARM','CLOUD','CRANE','DANCE','DREAM','EAGLE','EARTH','FLAME','FLOOR','FOCUS','FRUIT','GHOST','GRAPE','GREEN','HAPPY','HEART','HOUSE','JUICE','KNIFE','LATER','LEMON','LIGHT','MANGO','MIGHT','MUSIC','NIGHT','OCEAN','PAINT','PEACH','PIANO','PLANT','PLATE','QUEEN','QUIET','RIVER','ROBOT','ROUND','SHEEP','SMILE','SNAKE','SPACE','STORM','SUGAR','SWEET','TABLE','TIGER','TRAIN','WATER','WHEAT','WORLD','YOUTH'];
 const riddles=[{q:'What has keys but cannot open locks?',answers:['piano','a piano']},{q:'What has hands but cannot clap?',answers:['clock','a clock']},{q:'What has a neck but no head?',answers:['bottle','a bottle']},{q:'What gets wetter the more it dries?',answers:['towel','a towel']},{q:'What has many teeth but cannot bite?',answers:['comb','a comb']},{q:'What has one eye but cannot see?',answers:['needle','a needle']},{q:'What has words but never speaks?',answers:['book','a book']},{q:'What runs but never walks, and has a mouth but never talks?',answers:['river','a river']}];

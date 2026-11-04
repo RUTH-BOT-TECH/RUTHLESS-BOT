@@ -1,7 +1,8 @@
 'use strict';
 const crypto=require('node:crypto'),QRCode=require('qrcode'),jsQR=require('jsqr'),sharp=require('sharp'),media=require('../../lib/media'),{calculate}=require('../../lib/calculator'),config=require('../../config');
 const base={category:'tools',ownerOnly:false,adminOnly:false,groupOnly:false,cooldown:2};
-const command=(name,description,usage,run)=>({...base,name,aliases:[],description,usage,run});
+const aliases={calc:['calculator'],qr:['qrcode','qrgen'],password:['passgen']};
+const command=(name,description,usage,run)=>({...base,name,aliases:aliases[name]||[],description,usage,run});
 let scans=0;
 module.exports=[
  command('calc','Calculate basic arithmetic locally without executing code.','calc <expression>',async ctx=>{const s=ctx.args.join(' ');try{await ctx.reply(`🧮 ${s} = ${calculate(s)}`);}catch{await ctx.reply(`⚠️ Invalid calculation. Use numbers, parentheses and + - * / % ^. Example: ${config.prefix}calc (2+3)*4`);}}),

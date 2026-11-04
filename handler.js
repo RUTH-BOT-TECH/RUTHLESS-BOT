@@ -58,6 +58,18 @@ async function handle(sock, msg, commands, db) {
     const remaining = await checkCooldown(db, resolved, command.name, command.cooldown);
     if (remaining) return reply(`⏳ Try again in ${Math.floor(remaining / 60)}m ${remaining % 60}s.`);
     await db.set(`seen:${resolved}`, { name: msg.pushName || '', at: Date.now() });
+    // A reaction acknowledges an accepted command, not its eventual success.
+    // Never let a failed or slow reaction prevent the actual command reply.
+    if (msg.key.id && await db.get('settings:commandreact', true)) {
+      let timer;
+      try {
+        await Promise.race([
+          Promise.resolve().then(() => sock.sendMessage(chat, { react: { text: '🤖', key: msg.key } })),
+          new Promise(resolve => { timer=setTimeout(resolve, 3000); timer.unref?.(); })
+        ]);
+      } catch { console.warn('Could not send command reaction.'); }
+      finally { clearTimeout(timer); }
+    }
     await command.run({ sock, msg, sender: resolved, args: parts, commands, reply, db, chat, group, owner, box, invoked: name,
       markReplied: () => { replied = true; } });
     if (!replied) await reply('✅ Done.');

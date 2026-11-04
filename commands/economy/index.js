@@ -4,7 +4,8 @@
 const {randomInt}=require('node:crypto'),{withLock}=require('../../lib/game-lock'),{opponent}=require('../../lib/game-opponent'),{phoneJid}=require('../../lib/owner'),config=require('../../config');
 const KEY='economy:ledger',LIMIT=1_000_000_000_000,ITEMS={bait:{price:30,description:'Used automatically for an extra fish'},pickaxe:{price:500,description:'Permanent mining bonus'}};
 const common={category:'economy',ownerOnly:false,adminOnly:false,groupOnly:false,cooldown:0};
-const cmd=(name,aliases,description,usage,run,groupOnly=false)=>({...common,name,aliases,description,usage,run,groupOnly});
+const EXTRA_ALIASES={balance:['bal','wallet'],deposit:['dep'],withdraw:['with'],transfer:['pay'],fish:['fishing'],mine:['mining'],shop:['store'],inventory:['inv','items'],rank:['xp']};
+const cmd=(name,aliases,description,usage,run,groupOnly=false)=>({...common,name,aliases:[...aliases,...(EXTRA_ALIASES[name]||[])],description,usage,run,groupOnly});
 function user(ledger,id){if(!Object.hasOwn(ledger,id)){if(Object.keys(ledger).length>=5000)throw Error('Economy is full');ledger[id]={wallet:0,bank:0,xp:0,inventory:{},last:{}};}return ledger[id];}
 function number(s,max=LIMIT){if(!/^[1-9]\d{0,12}$/.test(String(s||'')))return null;const n=Number(s);return Number.isSafeInteger(n)&&n<=max?n:null;}
 const tag=id=>'@'+id.split('@')[0].split(':')[0],level=xp=>Math.floor(Math.sqrt(xp/100))+1;

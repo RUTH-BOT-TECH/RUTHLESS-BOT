@@ -196,3 +196,7 @@ Operator-generated key: `DATA_KEY` — run `node pairing-site/scripts/gen-key.js
 
 ### CPU-only Render dependency installation
 The root Render blueprint uses `ONNXRUNTIME_NODE_INSTALL=skip npm ci`: ONNX Runtime bundles its CPU runtime for supported platforms, while its default installer may try to download very large optional CUDA packages. The local CPU tests do not verify GPU inference. If configuring a bot service manually, use that build command for a CPU-only Render service. GPU deployments that need CUDA should deliberately configure and test the provider's installation instead of using this CPU-only setting.
+
+### Additional external lookup terms
+
+Open-Meteo's free geocoding, weather and air-quality APIs are for **non-commercial use only**. Commercial use requires a paid plan; forecasts are modeled and subject to change. Credit Open-Meteo / CC BY 4.0 and respect its usage limits and terms: https://open-meteo.com/en/terms. This includes `.forecast`, `.weather5`, `.aqi` / `.pollution`, `.uv`, `.sunrise` and `.sunset`. City queries leave the bot for Open-Meteo. Earthquake feeds come from USGS and are preliminary, not emergency alerts. Minecraft names/UUIDs and public server hostnames are shared with Mojang, Crafatar and/or mcsrvstat.us; GitHub/npm usernames go to their respective services. These providers may cache or rate-limit requests. The Minecraft server provider resolves requested domains independently of the bot's validation, so external DNS/connection behavior is not controlled by the bot.

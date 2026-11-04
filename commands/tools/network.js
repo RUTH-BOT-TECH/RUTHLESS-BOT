@@ -1,7 +1,8 @@
 'use strict';
 const network=require('../../lib/network-tools'),screens=require('../../lib/screenshot'),{resolvePublic}=require('../../lib/safe-proxy'),{boundedBody}=require('../../lib/public-files'),config=require('../../config');
 const common={category:'tools',ownerOnly:false,adminOnly:false,groupOnly:false,cooldown:10};
-const cmd=(name,description,usage,run)=>({...common,name,aliases:[],description,usage,run});
+const aliases={ip:['ipinfo','ipcheck','geoip'],shorturl:['tinyurl']};
+const cmd=(name,description,usage,run)=>({...common,name,aliases:aliases[name]||[],description,usage,run});
 const clean=v=>String(v??'').replace(/[\r\n\t]+/g,' ').slice(0,100);
 module.exports=[
  cmd('ip','Look up approximate public IP geolocation using ipwho.is.','ip <public IP>',async ctx=>{let value;try{if(ctx.args.length!==1)throw Error();value=network.ip(ctx.args[0]);}catch{return ctx.reply(`⚠️ Usage: ${config.prefix}ip 8.8.8.8 (public IPv4 or IPv6 only).`);}try{const j=await network.ipInfo(value);await ctx.reply(`🌐 ${clean(j.ip)} (${clean(j.type)})\nApproximate location: ${[j.city,j.region,j.country].filter(Boolean).map(clean).join(', ')||'unknown'}\nNetwork: ${clean(j.connection?.org||j.connection?.isp||'unknown')}\nTime zone: ${clean(j.timezone?.id||'unknown')}\nSource: ipwho.is. IP location can be inaccurate; the submitted address is shared with the provider.`);}catch{await ctx.reply('⚠️ IP lookup unavailable or rate-limited. Source: ipwho.is.');}}),
