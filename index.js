@@ -21,7 +21,6 @@ let connected = false;
 const health = require('./lib/health').createHealth({port:config.port});
 async function main() {
   if (!config.ownerNumber || !/^\d{6,15}$/.test(config.ownerNumber)) throw new Error('Set OWNER_NUMBER to 6–15 international digits.');
-  const youtubeDiagnostics = require('./lib/downloader-health').ensureStartup();
   const short = parseShortSession(config.sessionId);
   if (short?.origin) { if (!config.pairingApiUrl) config.pairingApiUrl = short.origin; if (!config.pairingSiteUrl) config.pairingSiteUrl = short.origin; }
   const digest = short?.id || crypto.createHash('sha256').update('ruthless-owner:'+config.ownerNumber).digest('hex').slice(0,32);
@@ -44,6 +43,8 @@ async function main() {
     }});
     try { await sessionSync.start(); if(dataBackup)await dataBackup.start(); } catch (e) { if (dataBackup) {dataBackup.closed=true;clearTimeout(dataBackup.timer);db.onChange=null;} await db.close(); throw e; }
   }
+  // Keep automatic package writes after the exclusive session lease has been obtained.
+  const youtubeDiagnostics = require('./lib/downloader-health').ensureStartup();
   const storedPrefix=await db.get('settings:prefix',config.prefix);if(typeof storedPrefix==='string'&&/^[.!#$%&?~]{1,3}$/.test(storedPrefix))config.prefix=storedPrefix;
   db.stopAfterDelete = () => { stopped = true; connected = false; stopReminders(); health.setConnected(false); health.markNotReady(); if (sessionSync) { sessionSync.closed = true; sessionSync.stopTimers(); } if (dataBackup) { dataBackup.closed = true; clearTimeout(dataBackup.timer); db.onChange = null; } setTimeout(() => { try { activeSocket?.end(); } catch {} }, 100); };
   const auth = await createSession(db, sessionSync ? '' : config.sessionId, {onAuthChange: () => sessionSync?.changed()});

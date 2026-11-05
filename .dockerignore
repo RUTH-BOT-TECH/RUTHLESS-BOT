@@ -12,3 +12,5 @@ logs
 cookies.txt
 __pycache__
 .cache
+
+.python-deps*

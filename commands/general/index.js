@@ -14,9 +14,7 @@ async function fetchJson(url) {
 }
 function timezone(args) { const tz = args.join(' ') || config.timezone; try { new Intl.DateTimeFormat('en', { timeZone: tz }).format(); return tz; } catch { return null; } }
 const commands = [
-  cmd('ping', ['speed'], 'Measure the response time.', 'ping', async ctx => {
-    const start = Date.now(); await ctx.reply('🏓 Measuring…'); await ctx.reply(`🏓 Send acknowledgement time: ${Date.now() - start} ms.`);
-  }),
+  cmd('ping', ['speed'], 'Check whether the bot is responding.', 'ping', ctx => ctx.reply('🏓 Pong! The bot is responding.')),
   cmd('runtime', ['uptime'], 'Show bot uptime.', 'runtime', ctx => ctx.reply(`⏱️ Uptime: ${elapsed(process.uptime())}`)),
   cmd('alive', ['status', 'botinfo', 'info', 'about', 'stats'], 'Show bot status.', 'alive', async ctx => {
     const start = Date.now(); let groups = 'unavailable';
@@ -26,9 +24,9 @@ const commands = [
   }),
   cmd('owner', ['creator', 'contact', 'vcard'], 'Show the deployer’s owner contact and creator credit.', 'owner', async ctx => {
     if (!config.ownerNumber) return ctx.reply(`⚠️ OWNER_NUMBER is not configured.\nCreator credit: +${config.creator}`);
-    const card = `BEGIN:VCARD\nVERSION:3.0\nFN:Bot Owner\nTEL;type=CELL;type=VOICE;waid=${config.ownerNumber}:+${config.ownerNumber}\nEND:VCARD`;
-    await ctx.sock.sendMessage(ctx.chat, { contacts: { displayName: 'Bot Owner', contacts: [{ vcard: card }] } }, { quoted: ctx.msg });
-    await ctx.reply(`👤 Deployer: @${config.ownerNumber}\nCreator credit: @${config.creator}`, { mentions: [`${config.ownerNumber}@s.whatsapp.net`, `${config.creator}@s.whatsapp.net`] });
+    const card = (name, number) => `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL;type=CELL;type=VOICE;waid=${number}:+${number}\nEND:VCARD`;
+    await ctx.sock.sendMessage(ctx.chat, { contacts: { displayName: 'Bot Owner and Creator Credit', contacts: [{ vcard: card('Bot Owner', config.ownerNumber) }, { vcard: card('Creator Credit', config.creator) }] } }, { quoted: ctx.msg });
+    ctx.markReplied();
   }),
   cmd('donate', [], 'Show the donation link.', 'donate', ctx => ctx.reply(config.donateUrl ? `💛 Donate: ${config.donateUrl}` : '⚠️ The owner has not configured DONATE_URL.')),
   cmd('script', ['repo'], 'Show the project repository.', 'repo', ctx => ctx.reply(`📦 Repository: ${config.repoUrl || 'Not configured; set REPO_URL.'}\nCreator credit: +${config.creator}`)),
@@ -83,7 +81,6 @@ const commands = [
   }),
   cmd('weather', [], 'Get current weather by city from Open-Meteo.', 'weather <city>', async ctx => {
     const city = ctx.args.join(' ').trim(); if (!city) return usage(ctx, 'weather <city>', 'weather Lagos');
-    await ctx.reply('⏳ Checking weather…');
     try {
       const locations = await fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
       const place = locations.results?.[0]; if (!place) return ctx.reply('⚠️ City not found. Try a different name.');

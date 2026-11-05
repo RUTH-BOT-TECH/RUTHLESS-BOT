@@ -29,7 +29,7 @@ Tap the session badge above, then choose **Pairing code** or **Scan QR**. Your I
 [![Deploy on Heroku](https://img.shields.io/badge/DEPLOY%20ON-HEROKU-79589F?style=for-the-badge&logo=heroku&logoColor=white)](https://heroku.com/deploy?template=https://github.com/RUTH-BOT-TECH/RUTHLESS-BOT)
 [![Deploy on Railway](https://img.shields.io/badge/DEPLOY%20ON-RAILWAY-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://railway.com/new)
 
-On Render, enter **`SESSION_ID`** and **`OWNER_NUMBER`** (international digits, no `+`). A newly issued ID includes the pairing-service address. Railway requires importing the repository manually.
+On Render, enter **`SESSION_ID`** and **`OWNER_NUMBER`** (international digits, no `+`). A newly issued ID includes the pairing-service address. Railway requires importing the repository manually. The Node build automatically attempts to install its downloader dependencies; no separate downloader build command or `PYTHON_BIN` setting is normally required. A compatible Python/pip, network access, and writable storage are still needed; see the setup guide if the owner receives a warning.
 
 ## 🛡️ Keep it safe
 
