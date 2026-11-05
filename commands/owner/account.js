@@ -18,14 +18,17 @@ async function protectedTarget(ctx,pn){
 function privateOnly(ctx){return !ctx.group && /^\d{6,15}@s\.whatsapp\.net$/.test(ctx.sender||'');}
 module.exports=[
  command('setbotname',[],'Change the linked WhatsApp account profile name.','setbotname <name>',async ctx=>{
+  if(await ctx.db.get('profileclone:active',null))return ctx.reply(`⚠️ Restore the cloned profile first with ${config.prefix}restoreprofile.`);
   const value=ctx.args.join(' ').trim();if(!value||value.length>60||/[\x00-\x1f\x7f]/.test(value))return ctx.reply(`⚠️ Usage: ${config.prefix}setbotname <name> (1–60 characters).`);
   await ctx.sock.updateProfileName(value);return ctx.reply('✅ WhatsApp profile name updated. This does not change the bot menu title.');
  }),
  command('setbotbio',['setbotstatus'],'Change the linked WhatsApp account About text.','setbotbio <text>',async ctx=>{
+  if(await ctx.db.get('profileclone:active',null))return ctx.reply(`⚠️ Restore the cloned profile first with ${config.prefix}restoreprofile.`);
   const value=ctx.args.join(' ').trim();if(!value||value.length>139||/[\x00-\x1f\x7f]/.test(value))return ctx.reply(`⚠️ Usage: ${config.prefix}setbotbio <text> (1–139 characters).`);
   await ctx.sock.updateProfileStatus(value);return ctx.reply('✅ WhatsApp About text updated. This does not post a status story.');
  }),
  command('setbotpp',[],'Set the linked account profile picture from an image.','setbotpp (reply to an image)',async ctx=>{
+  if(await ctx.db.get('profileclone:active',null))return ctx.reply(`⚠️ Restore the cloned profile first with ${config.prefix}restoreprofile.`);
   const info=context(ctx.msg),q=info.quotedMessage,im=inner(q).imageMessage;
   if(!q||!im||!info.stanzaId)return ctx.reply(`⚠️ Reply to an image with ${config.prefix}setbotpp.`);
   if(Number(im.fileLength||0)>10*1024*1024)return ctx.reply('⚠️ Profile image must be at most 10 MB.');
@@ -36,6 +39,7 @@ module.exports=[
   await ctx.sock.updateProfilePicture(bot,picture);return ctx.reply('✅ WhatsApp profile picture updated.');
  }),
  command('delbotpp',[],'Remove the linked account profile picture.','delbotpp confirm',async ctx=>{
+  if(await ctx.db.get('profileclone:active',null))return ctx.reply(`⚠️ Restore the cloned profile first with ${config.prefix}restoreprofile.`);
   if(ctx.args.length!==1||ctx.args[0]!=='confirm')return ctx.reply(`⚠️ This removes the WhatsApp profile picture. Use ${config.prefix}delbotpp confirm.`);
   const bot=await phoneJid(ctx.sock,ctx.sock.user?.id);if(!bot)return ctx.reply('⚠️ Linked account identity is unavailable.');
   await ctx.sock.removeProfilePicture(bot);return ctx.reply('✅ WhatsApp profile picture removed.');
@@ -95,3 +99,6 @@ module.exports=[
   return ctx.reply(`🚫 Bot access bans\nUsers (${users.length}; first 50): ${users.slice(0,50).join(', ')||'none'}\nGroups (${chats.length}; first 50): ${chats.slice(0,50).join(', ')||'none'}`);
  })
 ];
+
+// Serialize manual edits with clone and restoration.
+for(const c of module.exports)if(['setbotname','setbotbio','setbotpp','delbotpp'].includes(c.name)){const run=c.run;c.run=ctx=>require('../../lib/game-lock').withLock('profileclone:active',()=>run(ctx));}

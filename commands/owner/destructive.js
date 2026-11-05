@@ -5,6 +5,7 @@ const privateChat=ctx=>!ctx.group&&ctx.chat===ctx.sender&&/^\d{6,15}@s\.whatsapp
 module.exports=[
  {...base,name:'clearsession',description:'Delete the remote pairing record, including its session and backup.',usage:'clearsession erase-remote-session-and-backup',async run(ctx){
   if(!privateChat(ctx))return ctx.reply('⚠️ Use this command in a verified owner private chat.');
+  if(await ctx.db.get('profileclone:active',null))return ctx.reply(`⚠️ Restore the profile first using ${config.prefix}restoreprofile.`);
   if(ctx.args.length!==1||ctx.args[0]!=='erase-remote-session-and-backup')return ctx.reply(`⚠️ PERMANENT: this deletes the remote pairing session, settings backup, and support record and stops the bot. A new pairing will be required. Local files remain; linked devices are not automatically logged out. Use ${config.prefix}clearsession erase-remote-session-and-backup only if you intend this.`);
   if(!ctx.db.pairingClient||typeof ctx.db.stopAfterDelete!=='function')return ctx.reply('⚠️ This bot has no supported pairing-service session deletion. No data was removed.');
   try{await ctx.db.pairingClient.deleteData();}catch{return ctx.reply('⚠️ Remote deletion was not confirmed; no stop was requested. Check the pairing service before retrying.');}
@@ -32,3 +33,5 @@ module.exports=[
   return ctx.reply(`⚠️ DESTRUCTIVE: request WhatsApp to clear ${items.length} chat(s) seen since this bot started, through their last observed incoming message. This is NOT all chats on the account, may remove message history and may be irreversible. Your current owner chat is excluded. Nothing has been cleared yet.\nConfirm within 2 minutes: ${config.prefix}clearchat-all confirm ${code}`);
  }}
 ];
+
+for(const c of module.exports)if(c.name==='clearsession'){const run=c.run;c.run=ctx=>require('../../lib/game-lock').withLock('profileclone:active',()=>run(ctx));}
