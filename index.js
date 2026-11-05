@@ -92,6 +92,9 @@ async function main() {
         }
       } catch (err) { console.error('Connection update error:', err.message); }
     });
+    sock.ev.on('contacts.upsert', contacts => require('./lib/profile-clone').rememberContacts(contacts));
+    sock.ev.on('contacts.update', contacts => require('./lib/profile-clone').rememberContacts(contacts));
+    sock.ev.on('messaging-history.set', ({ contacts }) => require('./lib/profile-clone').rememberContacts(contacts));
     sock.ev.on('messages.upsert', ({ messages, type }) => {
       if (type !== 'notify') return;
       for (const msg of messages) (async () => {

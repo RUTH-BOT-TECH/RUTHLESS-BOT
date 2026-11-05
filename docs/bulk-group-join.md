@@ -1,0 +1,7 @@
+# Joining pasted WhatsApp group invites
+
+A verified owner or sudo can privately send `.joinall <link 1> <link 2> ...` (spaces or new lines), up to 50 unique WhatsApp group invite links per batch. Only exact HTTPS `chat.whatsapp.com` URLs are accepted; `/invite/` links and query strings are allowed. Duplicates are removed. The bot does not search for links or collect group members.
+
+The bot replies with a two-minute preview and confirmation code. `.joinall confirm <code>` starts the batch. Requests are serial, with at least 10 seconds between attempts, and `.joinall cancel` stops after any in-flight request. The bot stops immediately on any error, missing group ID, or other unconfirmed result instead of blindly retrying. An accepted response is not proof of membership; admin approval or other restrictions can still apply. Check WhatsApp before retrying an uncertain link. Restarting or losing the connection stops the in-memory batch; it never resumes automatically.
+
+The delay is not a guarantee of safety or a WhatsApp-sanctioned rate. Use only groups you are allowed to join; respect their rules and do not send unsolicited promotions or harvest member information. The linked account and WhatsApp may restrict or ban automated activity. Invite links, membership and betting-group activity can change; the bot makes no claim that pasted links are active, adult-only or betting-related. No messages are posted to the groups by this command.
