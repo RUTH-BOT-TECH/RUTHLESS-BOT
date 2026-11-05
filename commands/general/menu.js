@@ -103,7 +103,7 @@ async function sendBanner(ctx, text, mentions = []) {
   ctx.markReplied();
 }
 module.exports = {
-  name: 'menu', aliases: ['help', 'list', 'commands', 'allmenu'], category: 'general',
+  name: 'menu', aliases: ['help', 'list', 'commands', 'allmenu', 'start'], category: 'general',
   description: 'Browse command categories, get command help or export the full menu.',
   usage: 'menu [category] [page] | menu all | help <command>',
   ownerOnly: false, adminOnly: false, groupOnly: false, cooldown: 0,

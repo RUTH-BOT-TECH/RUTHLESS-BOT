@@ -1,7 +1,7 @@
 'use strict';
 const crypto=require('node:crypto'),{randomInt}=crypto,{withLock}=require('../../lib/game-lock'),game=require('../../lib/personal-games'),config=require('../../config');
 const common={category:'games',ownerOnly:false,adminOnly:false,groupOnly:false,cooldown:0};
-const EXTRA_ALIASES={slots:['slot'],fact:['funfact'],speedtype:['typing'],lovecalc:['compatibility']};
+const EXTRA_ALIASES={slots:['slot'],fact:['funfact'],speedtype:['typing'],lovecalc:['compatibility','match','friendship','crush']};
 const cmd=(name,aliases,description,usage,run)=>({...common,name,aliases:[...aliases,...(EXTRA_ALIASES[name]||[])],description,usage,run});
 const pick=a=>a[randomInt(a.length)];
 const WORDS=['APPLE','BEACH','BERRY','BRAIN','BREAD','BRICK','BROWN','CHAIR','CHARM','CLOUD','CRANE','DANCE','DREAM','EAGLE','EARTH','FLAME','FLOOR','FOCUS','FRUIT','GHOST','GRAPE','GREEN','HAPPY','HEART','HOUSE','JUICE','KNIFE','LATER','LEMON','LIGHT','MANGO','MIGHT','MUSIC','NIGHT','OCEAN','PAINT','PEACH','PIANO','PLANT','PLATE','QUEEN','QUIET','RIVER','ROBOT','ROUND','SHEEP','SMILE','SNAKE','SPACE','STORM','SUGAR','SWEET','TABLE','TIGER','TRAIN','WATER','WHEAT','WORLD','YOUTH'];

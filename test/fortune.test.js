@@ -1,0 +1,3 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),{loadCommands}=require('../lib/loader');
+test('fortune and relationship scores are explicitly fictional entertainment',async()=>{const m=loadCommands();for(const name of ['tarot','palm']){let reply;await m.get(name).run({args:[],reply:async s=>{reply=s}});assert.match(reply,/entertainment/i);assert.match(reply,/not a prediction|nothing was predicted/i);}for(const alias of ['match','friendship','crush']){assert.equal(m.get(alias),m.get('lovecalc'));let reply;await m.get(alias).run({args:['Ada','|','Sam'],invoked:alias,reply:async s=>{reply=s}});assert.match(reply,/fictional score/i);}});

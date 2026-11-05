@@ -1,0 +1,14 @@
+'use strict';
+const {randomInt}=require('node:crypto'),config=require('../../config'),state=require('../../lib/game-state'),{withLock}=require('../../lib/game-lock'),{clean}=require('../../lib/owner');
+const prompts=['Bright stars shine above the quiet city.','The quick brown fox jumps over the lazy dog.','A little practice makes every new skill easier.','Music and laughter filled the warm evening air.','A curious mind can learn something new every day.','Fresh rain falls softly on the green leaves.','Small steps can lead to a wonderful journey.','The friendly cat slept beside the open window.'];
+module.exports={name:'typerace',aliases:[],category:'games',ownerOnly:false,adminOnly:false,groupOnly:true,cooldown:0,description:'Run a timed group typing race with a leaderboard.',usage:'typerace [phrase|finish|cancel]',async run(ctx){return withLock(`game:${ctx.chat}`,async()=>{
+ const active=await state.current(ctx.db,ctx.chat),text=ctx.args.join(' ').trim();
+ if(active&&active.type!=='typerace')return ctx.reply(`⏳ Another game (${active.type}) is active in this chat.`);
+ let g=active?.game;
+ if(!g){if(text)return ctx.reply(`⚠️ No active race. Start with ${config.prefix}typerace.`);g={starter:ctx.sender,phrase:prompts[randomInt(prompts.length)],started:Date.now(),expires:Date.now()+state.TTL,entries:[]};await state.begin(ctx.db,ctx.chat,'typerace',g);return ctx.reply(`🏁 Group typing race! Retype exactly:\n${g.phrase}\nSend ${config.prefix}typerace followed by the phrase. Starter: use ${config.prefix}typerace finish before the 2-minute expiry. Time includes network delay.`);}
+ if(!text)return ctx.reply(`🏁 Retype: ${g.phrase}\n${g.entries.length} player(s) have finished. Starter may use ${config.prefix}typerace finish.`);
+ if(['finish','cancel'].includes(text.toLowerCase())){if(ctx.sender!==g.starter&&!ctx.owner)return ctx.reply('⚠️ Only the race starter or bot owner can finish or cancel.');await state.end(ctx.db,ctx.chat,'typerace');if(text.toLowerCase()==='cancel')return ctx.reply('🏳️ Typing race cancelled.');const ranked=g.entries.slice().sort((a,b)=>a.ms-b.ms).slice(0,25);return ctx.reply(`🏁 Race results\n${ranked.length?ranked.map((p,i)=>`${i+1}. @${clean(p.id)} — ${(p.ms/1000).toFixed(1)}s, ${Math.round((g.phrase.length/5)/(p.ms/60000))} WPM`).join('\n'):'No successful entries.'}\nTimes include message and network delay.`,{mentions:ranked.map(p=>p.id)});}
+ if(text!==g.phrase)return ctx.reply('❌ Not an exact match. You can try again while the race is active.');
+ if(g.entries.some(p=>p.id===ctx.sender))return ctx.reply('✅ Your result is already recorded.');if(g.entries.length>=25)return ctx.reply('⚠️ This race already has 25 players.');
+ const ms=Math.max(1000,Date.now()-g.started);g.entries.push({id:ctx.sender,ms});await ctx.db.set(`game:typerace:${ctx.chat}`,g);return ctx.reply(`✅ Result recorded: ${(ms/1000).toFixed(1)} seconds. The race remains open for others.`);
+ });}};

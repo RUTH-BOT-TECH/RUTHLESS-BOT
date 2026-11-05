@@ -1,5 +1,5 @@
 const config = require('./config');
-const { isOwner, phoneJid } = require('./lib/owner');
+const { isOwner, hasRole, phoneJid } = require('./lib/owner');
 const { checkCooldown } = require('./lib/cooldown');
 const { presence } = require('./lib/presence');
 const { resolveParticipant } = require('./lib/group');
@@ -22,7 +22,8 @@ async function handle(sock, msg, commands, db) {
   const sender = group ? msg.key.participant : (msg.key.fromMe ? sock.user?.id : chat);
   if (!sender) return;
   const alt = group ? msg.key.participantAlt : msg.key.remoteJidAlt;
-  const owner = await isOwner(sock, sender, alt);
+  const owner = await isOwner(sock, sender, alt, db);
+  if (await require('./lib/owner-access').denied(sock, msg, db, owner)) return;
   if (!msg.key.fromMe) await presence(sock, chat, db);
   const text = getText(msg.message).trim();
   const storedPrefix=await db.get('settings:prefix',config.prefix);if(typeof storedPrefix==='string'&&/^[.!#$%&?~]{1,3}$/.test(storedPrefix))config.prefix=storedPrefix;
@@ -49,13 +50,15 @@ async function handle(sock, msg, commands, db) {
     if (group && !owner && (await db.get(`group:${chat}:ban:${sender}`, false) || await db.get(`group:${chat}:ban:${resolved}`, false))) return;
     if (command.ownerOnly && !owner) return;
     if (command.groupOnly && !group) return reply('This command can only be used in a group.');
-    if (command.adminOnly) {
+    const moderator = group && await hasRole(sock, sender, alt, db, 'mod');
+    if (command.adminOnly && !moderator && !owner) {
       const meta = await sock.groupMetadata(chat);
       const pn = await phoneJid(sock, sender, alt);
       const participant = await resolveParticipant(sock, meta.participants, sender) || await resolveParticipant(sock, meta.participants, pn);
       if (!participant?.admin && !owner) return reply('Only group admins can use this');
     }
-    const remaining = await checkCooldown(db, resolved, command.name, command.cooldown);
+    const premium = await hasRole(sock, sender, alt, db, 'prem');
+    const remaining = premium ? 0 : await checkCooldown(db, resolved, command.name, command.cooldown);
     if (remaining) return reply(`⏳ Try again in ${Math.floor(remaining / 60)}m ${remaining % 60}s.`);
     await db.set(`seen:${resolved}`, { name: msg.pushName || '', at: Date.now() });
     // A reaction acknowledges an accepted command, not its eventual success.
@@ -70,10 +73,11 @@ async function handle(sock, msg, commands, db) {
       } catch { console.warn('Could not send command reaction.'); }
       finally { clearTimeout(timer); }
     }
-    await command.run({ sock, msg, sender: resolved, args: parts, commands, reply, db, chat, group, owner, box, invoked: name,
+    await command.run({ sock, msg, sender: resolved, args: parts, commands, reply, db, chat, group, owner, moderator, box, invoked: name,
       markReplied: () => { replied = true; } });
     if (!replied) await reply('✅ Done.');
   } catch (error) {
+    require('./lib/diagnostics').record('COMMAND_FAILED','error');
     console.error(`Command ${name} failed:`, error.message);
     try { await reply('⚠️ Something went wrong. Please try again later.'); } catch (sendError) { console.error('Reply failed:', sendError.message); }
   }

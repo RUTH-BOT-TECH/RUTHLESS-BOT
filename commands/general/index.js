@@ -45,7 +45,7 @@ const commands = [
   }),
   cmd('changelog', ['news','changelogs'], 'Show the latest GitHub release notes or recent commits.', 'changelog', async ctx => {
     try { await ctx.reply(await require('../../lib/bot-updates').notes()); }
-    catch { await ctx.reply('⚠️ Could not fetch release notes or commits from GitHub. Check the repository and try again later.'); }
+    catch { const repository = require('../../lib/bot-updates').repo(); await ctx.reply(repository ? `⚠️ GitHub release notes and commit feed are unavailable right now. You can check the commits directly: ${repository.link}/commits` : '⚠️ The repository setting is invalid. The bot owner should check REPO_URL in the hosting dashboard.'); }
   }),
   cmd('language', ['setlang'], 'Save your default language for future translation commands.', 'language <code>', async ctx => {
     const lang = ctx.args[0];

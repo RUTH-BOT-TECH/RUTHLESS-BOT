@@ -16,6 +16,7 @@ const extras = require('./lib/extra-events');
 const groupGuards = require('./lib/group-guards');
 const activity = require('./lib/activity');
 const logger = pino({ level: process.env.LOG_LEVEL || 'warn' });
+const diagnostics = require('./lib/diagnostics');
 let connected = false;
 const health = require('./lib/health').createHealth({port:config.port});
 async function main() {
@@ -37,6 +38,7 @@ async function main() {
     db.pairingClient = client;
     sessionSync = new SessionSync(client, db, {onContention: () => { console.warn('Session is still in use. Waiting for the previous bot to stop; check for duplicate deployments.'); health.start(); }, onError: code => { db.lastError = code; }, onLost: () => {
       stopped = true; connected = false; health.setConnected(false); stopReminders();
+      diagnostics.record('SESSION_LEASE_LOST','error');
       console.error('Session lease lost. The bot has stopped to prevent duplicate instances.');
       try { activeSocket?.end(); } catch {}
     }});
@@ -68,7 +70,7 @@ async function main() {
           console.log(`Pairing code (keep private): ${await sock.requestPairingCode(config.pairingNumber)}`);
         }
         if (update.connection === 'open') {
-          connected = true; health.setConnected(true); youtubeDiagnostics.then(async result => {if((!result.yt||!result.ffmpeg||result.updated===false)&&connected&&activeSocket===sock){const text=(!result.yt||!result.ffmpeg)?require('./lib/downloader-health').guidance:'⚠️ Automatic yt-dlp update failed. Downloads will use the installed version. See docs/setup-and-privacy.md to update it manually.';try{await sock.sendMessage(`${config.ownerNumber}@s.whatsapp.net`,{text});}catch{console.warn('Could not deliver downloader setup notice privately to the owner.');}}}); stopReminders(); stopReminders=require('./lib/reminders').start(sock,db); stopExtras(); stopExtras=extras.startTimers(sock,db); console.log('WhatsApp connected.'); await auth.saveCreds(); sessionSync?.changed(); await dataBackup?.notifyPending(); stopHeartbeat(); if (config.heartbeat && pairingClient) stopHeartbeat = require('./lib/heartbeat').startHeartbeat({client:pairingClient,db,sock,ownerNumber:config.ownerNumber});
+          connected = true; diagnostics.record('WHATSAPP_CONNECTED'); health.setConnected(true); youtubeDiagnostics.then(async result => {if((!result.yt||!result.ffmpeg||result.updated===false)&&connected&&activeSocket===sock){const text=(!result.yt||!result.ffmpeg)?require('./lib/downloader-health').guidance:'⚠️ Automatic yt-dlp update failed. Downloads will use the installed version. See docs/setup-and-privacy.md to update it manually.';try{await sock.sendMessage(`${config.ownerNumber}@s.whatsapp.net`,{text});}catch{console.warn('Could not deliver downloader setup notice privately to the owner.');}}}); stopReminders(); stopReminders=require('./lib/reminders').start(sock,db); stopExtras(); stopExtras=extras.startTimers(sock,db); console.log('WhatsApp connected.'); await auth.saveCreds(); sessionSync?.changed(); await dataBackup?.notifyPending(); stopHeartbeat(); if (config.heartbeat && pairingClient) stopHeartbeat = require('./lib/heartbeat').startHeartbeat({client:pairingClient,db,sock,ownerNumber:config.ownerNumber});
           if (shouldExport) {
             shouldExport = false;
             const id = await auth.exportSession();
@@ -78,7 +80,7 @@ async function main() {
           }
         }
         if (update.connection === 'close') {
-          connected = false; health.setConnected(false); stopReminders(); stopExtras(); stopHeartbeat(); const status = update.lastDisconnect?.error?.output?.statusCode;
+          connected = false; diagnostics.record('WHATSAPP_DISCONNECTED','error'); health.setConnected(false); stopReminders(); stopExtras(); stopHeartbeat(); const status = update.lastDisconnect?.error?.output?.statusCode;
           if (status === DisconnectReason.loggedOut) { console.error(`Session expired, pair again at ${config.pairingSiteUrl || '<PAIRING_SITE_URL>'}`); stopped = true; await sessionSync?.close({save:false}); }
           else { console.warn('Disconnected; retrying in 5 seconds.'); setTimeout(connect, 5000); }
         }
@@ -88,6 +90,7 @@ async function main() {
       if (type !== 'notify') return;
       for (const msg of messages) (async () => {
         if(msg?.key?.remoteJid==='status@broadcast'){statuses.enqueue(msg);return;}
+        require('./lib/observed-chats').observe(msg);
         try { await require('./lib/afk').process(sock,msg,db); } catch(err) { console.error('AFK processing failed.'); }
         try { await activity.record(sock,msg,db); } catch(err) { console.error('Activity record failed:',err.message); }
         let deleted = false;
@@ -102,7 +105,9 @@ async function main() {
     sock.ev.on('group-participants.update', update => { (async()=>{await groupGuards.guard(sock,update,db);await participantsUpdate(sock,update,db);})().catch(err => console.error('Group event error:', err.message)); });
   };
   connect();
-  const shutdown = async () => { stopped = true; stopReminders(); clearInterval(gameCleanup); health.close(); try { activeSocket?.end(); } catch {} try { await dataBackup?.close(); } catch { console.error('Settings backup failed during shutdown; local data retained.'); } try { await sessionSync?.close(); } catch { console.error('Session upload failed during shutdown; local snapshot retained.'); } await db.close(); process.exit(0); };
+  let shutdownStarted = false;
+  const shutdown = async () => { if (shutdownStarted) return; shutdownStarted = true; stopped = true; stopReminders(); clearInterval(gameCleanup); health.close(); try { activeSocket?.end(); } catch {} try { await dataBackup?.close(); } catch { console.error('Settings backup failed during shutdown; local data retained.'); } try { await sessionSync?.close(); } catch { console.error('Session upload failed during shutdown; local snapshot retained.'); } await db.close(); process.exit(0); };
+  db.requestProcessStop = () => { if (shutdownStarted) return false; setTimeout(() => shutdown().catch(() => { console.error('Graceful shutdown failed.'); process.exitCode = 1; }), 1000); return true; };
   process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
 }
 main().catch(e => {
