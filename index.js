@@ -56,7 +56,12 @@ async function main() {
   const connect = () => {
     if (stopped) return;
     let requested = false, stopExtras = () => {}, stopHeartbeat = () => {};
-    const sock = makeWASocket({ logger, auth: auth.state, browser: Browsers.ubuntu('Chrome'), printQRInTerminal: false, syncFullHistory: false });
+    const groupStatus = require('./lib/group-status');
+    const sock = makeWASocket({ logger, auth: auth.state, browser: Browsers.ubuntu('Chrome'), printQRInTerminal: false, syncFullHistory: false, patchMessageBeforeSending: groupStatus.patchMessage });
+    groupStatus.registerSocket(sock);
+    // rc14 does not preserve Group Status stanza metadata on automatic retries.
+    // Exclude those status envelopes from retry caching without changing normal message retries.
+    if (sock.messageRetryManager) { try { groupStatus.guardRetryCache(sock); } catch { console.warn('Group Status retry guard unavailable; Group Status sending disabled.'); } }
     activeSocket = sock;
     const statuses=extras.statusQueue(sock,db);
     sock.ev.on('call', calls => { extras.calls(sock,calls,db).catch(err=>console.error('Call handling failed:',err.message)); });
