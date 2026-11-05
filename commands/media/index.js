@@ -9,7 +9,8 @@ async function requireMedia(ctx,types,usageText) {
   const msg=media.sourceMessage(ctx.msg), info=media.mediaInfo(msg);
   if (!info || !types.includes(info.type)) { await usage(ctx,usageText,`${usageText.split(' ')[0]} (reply to ${types.join(' or ')})`); return null; }
   if (Number(info.data.fileLength||0)>media.LIMIT) {await ctx.reply('⚠️ Media exceeds the 50 MB limit.');return null;}
-  await ctx.reply('⏳ Working…');
+  // Video conversion, uploads and local AI can take substantially longer than quick image edits.
+  if (info.type==='video' || info.type==='audio' || ['tourl','upload','tourl2','imgtourl','removebg','remove-bg'].includes(ctx.invoked)) await ctx.reply('⏳ Working…');
   try {return {msg,info,buffer:await media.download(ctx.sock,msg)};}
   catch(e) {await ctx.reply(e.message.includes('50 MB')?'⚠️ Media exceeds the 50 MB limit.':'⚠️ Could not download this media. Try another message.');return null;}
 }
@@ -116,7 +117,7 @@ module.exports=commands;
 
 for(const name of ['ttp','ttp2','ttp3','ttp4','ttp5','attp']) commands.push(cmd(name,[],`Create a ${name==='attp'?'color-changing animated':'text'} sticker locally.`,`${name} <text>`,async ctx=>{
  const text=ctx.args.join(' ').trim();if(!text || text.length>80)return usage(ctx,`${name} <text>`,`${name} Hello world`);
- await ctx.reply('⏳ Making sticker…');
+ if(name==='attp') await ctx.reply('⏳ Making animated sticker…');
  try {const renderer=require('../../lib/text-sticker');const sticker=name==='attp'?await renderer.animated(text):await renderer.render(text,name);await output(ctx,{sticker});}
  catch{await ctx.reply('⚠️ Could not render this text sticker. Try shorter text.');}
 }));
@@ -124,7 +125,6 @@ for(const name of ['ttp','ttp2','ttp3','ttp4','ttp5','attp']) commands.push(cmd(
 for(const [name, spec] of Object.entries(require('../../lib/imagefx').effects)) commands.push(cmd(name,spec.aliases,`Apply ${name} to a user's profile picture.`,`${name} [@user|number|reply]`,async ctx=>{
  const {target}=require('../../lib/group'),{clean}=require('../../lib/owner'),fx=require('../../lib/imagefx');
  const id=await target(ctx,{self:true});if(!id)return usage(ctx,`${name} [@user|number|reply]`,`${name} @user`);
- await ctx.reply('⏳ Creating profile effect…');
  try {const avatar=await fx.getAvatar(ctx.sock,id);const image=await fx.render(name,avatar.buffer,clean(id));await output(ctx,{image,caption:ctx.box(`✨ ${spec.label}: @${clean(id)}${avatar.fallback?'\nUsing default picture.':''}`),mentions:[id]});}
  catch{await ctx.reply('⚠️ Could not create this profile effect.');}
 }));
@@ -142,13 +142,11 @@ function oneEmoji(text) {
 commands.push(cmd('emojimix',[],'Mix two supported emoji with Google Emoji Kitchen.','emojimix emoji1+emoji2',async ctx=>{
  const parts=ctx.args.join('').split('+');if(parts.length!==2 || !parts.every(oneEmoji))return usage(ctx,'emojimix emoji1+emoji2','emojimix 😃+🔥');
  const url=require('emoji-mixer').default(parts[0],parts[1]);if(!url)return ctx.reply('⚠️ This emoji combination is not available in Emoji Kitchen.');
- await ctx.reply('⏳ Finding the emoji mix…');
  try{const image=await fetchEmoji(url,'www.gstatic.com');await output(ctx,{image,caption:ctx.box(`✨ ${parts[0]} + ${parts[1]}\nSource: Google Emoji Kitchen.`)});}catch{await ctx.reply('⚠️ Emoji Kitchen image is unavailable. Try again later.');}
 }));
 commands.push(cmd('emoji',[],'Show a large Twemoji image.','emoji <emoji>',async ctx=>{
  const emoji=ctx.args.join('');if(!oneEmoji(emoji))return usage(ctx,'emoji <emoji>','emoji 😃');
  const normalized=emoji.includes('\u200d')?emoji:emoji.replaceAll('\ufe0f','');const code=[...normalized].map(c=>c.codePointAt(0).toString(16)).join('-');
- await ctx.reply('⏳ Finding the emoji…');
  try{const image=await fetchEmoji(`https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${code}.png`,'cdn.jsdelivr.net');const enlarged=await sharp(image).resize(512,512).png().toBuffer();await output(ctx,{image:enlarged,caption:ctx.box('✨ Source: Twemoji via jsDelivr.')});}
  catch{await ctx.reply('⚠️ That emoji is unavailable from Twemoji. Try another emoji.');}
 }));

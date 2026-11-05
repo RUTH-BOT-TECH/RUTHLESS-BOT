@@ -5,7 +5,7 @@ const user='2348012345678@s.whatsapp.net',person='2348087654321@s.whatsapp.net',
 async function setup(){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'ruth-new-')),db=await new Database('',path.join(dir,'db.json')).connect(),sent=[];const sock={user:{id:'2348000000000@s.whatsapp.net'},sendMessage:async(jid,payload)=>sent.push({jid,payload})};return {db,sent,sock,async close(){await db.close();await fs.rm(dir,{recursive:true,force:true});}};}
 function msg(text,{target,quoted,chat=user,id='id1'}={}){return {key:{remoteJid:chat,...(chat.endsWith('@g.us')?{participant:user}:{})},message:{extendedTextMessage:{text,contextInfo:{...(target?{mentionedJid:[target]}:{}),...(quoted?{quotedMessage:quoted,stanzaId:id,participant:person}:{})}}}};}
 test('reaction commands use a documented provider, targets, solo mode and fallback',async()=>{const x=await setup(),old=reaction.gif;try{let called=[];reaction.gif=async name=>{called.push(name);return Buffer.from('mp4')};const c=loadCommands();assert.ok(c.has('hug')&&c.has('kiss')&&c.has('eat')&&c.has('drink')&&c.has('angry'));assert.equal(c.has('cook'),false);
- await handle(x.sock,msg('.hug',{target:person}),c,x.db);let p=x.sent.at(-1).payload;assert.equal(called.at(-1),'hug');assert.equal(p.gifPlayback,true);assert.deepEqual(p.mentions,[user,person]);assert.match(p.caption,/hugged/);assert.match(p.caption,/OtakuGIFs/);
+ await handle(x.sock,msg('.hug',{target:person}),c,x.db);let p=x.sent.at(-1).payload;assert.equal(called.at(-1),'hug');assert.equal(p.gifPlayback,true);assert.deepEqual(p.mentions,[user,person]);assert.match(p.caption,/hugged/);assert.doesNotMatch(p.caption,/Source:|OtakuGIFs|Fetching/i);assert.equal(x.sent.length,1);
  await handle(x.sock,msg('.kiss'),c,x.db);assert.match(x.sent.at(-1).payload.text,/mention someone/);assert.equal(called.length,1);
  await handle(x.sock,msg('.dance'),c,x.db);assert.equal(called.at(-1),'dance');assert.deepEqual(x.sent.at(-1).payload.mentions,[user]);
  reaction.gif=async()=>{throw Error('provider offline')};await handle(x.sock,msg('.pat',{target:person}),c,x.db);assert.match(x.sent.at(-1).payload.text,/Reaction unavailable/);
@@ -21,3 +21,14 @@ test('view-once commands require a quoted view-once message and send to the requ
  await handle(x.sock,msg('.vv2',{quoted:photo,chat:group}),c,x.db);assert.equal(x.sent.at(-2).jid,'2348000000001@s.whatsapp.net');assert.equal(x.sent.at(-2).payload.image.toString(),'image-data');assert.match(x.sent.at(-1).payload.text,/Sent privately/);
  await x.db.del(`cooldown:${user}:viewonce`);await handle(x.sock,msg('.viewonce',{quoted:{imageMessage:{mimetype:'image/jpeg'}},chat:group}),c,x.db);assert.match(x.sent.at(-1).payload.text,/Reply to a view-once/);
  }finally{media.download=old;config.ownerNumber=owner;await x.close();}});
+test('slap acknowledges with an emoji and one GIF; failure gives one useful reply',async()=>{
+ const x=await setup(),old=reaction.gif;
+ try{
+  await x.db.set('settings:commandreact',true);
+  reaction.gif=async()=>Buffer.from('gif');
+  const m=msg('.slap',{target:person});m.key.id='slap';await handle(x.sock,m,loadCommands(),x.db);
+  assert.equal(x.sent.length,2);assert.equal(x.sent[0].payload.react.text,'🤖');assert.ok(x.sent[1].payload.video);assert.equal(x.sent[1].payload.caption,`@2348012345678 slapped @2348087654321`);assert.doesNotMatch(x.sent[1].payload.caption,/source|fetching/i);
+  reaction.gif=async()=>{throw Error('offline')};const failed=msg('.punch',{target:person});failed.key.id='punch';await handle(x.sock,failed,loadCommands(),x.db);
+  assert.equal(x.sent.length,4);assert.ok(x.sent[2].payload.react);assert.match(x.sent[3].payload.text,/Reaction unavailable/);assert.doesNotMatch(x.sent[3].payload.text,/source|fetching/i);
+ }finally{reaction.gif=old;await x.close();}
+});

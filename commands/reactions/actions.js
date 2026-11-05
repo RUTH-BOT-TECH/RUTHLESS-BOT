@@ -23,11 +23,9 @@ module.exports=Object.entries(actions).map(([name,[provider,verb,solo,api='otaku
  async run(ctx){
   const id=await target(ctx);
   if(!id&&!solo)return ctx.reply(`⚠️ Reply to or mention someone: ${config.prefix}${name} @person`);
-  const source=api==='gifukai'?'Gifukai':'OtakuGIFs';
-  await ctx.reply(`⏳ Fetching a reaction GIF from ${source}…`);
   try{
    const video=await reaction.gif(provider,api),caption=id?`@${clean(ctx.sender)} ${verb} @${clean(id)}`:`@${clean(ctx.sender)} ${solo}`;
-   await ctx.sock.sendMessage(ctx.chat,{video,gifPlayback:true,caption:ctx.box(`${caption}\nSource: ${source}`),mentions:id?[ctx.sender,id]:[ctx.sender]},{quoted:ctx.msg});ctx.markReplied();
-  }catch(e){await ctx.reply(e.message.includes('busy')?'⏳ Reactions are busy. Try again shortly.':`⚠️ Reaction unavailable. Please try again. Source: ${source}.`);}
+   await ctx.sock.sendMessage(ctx.chat,{video,gifPlayback:true,caption,mentions:id?[ctx.sender,id]:[ctx.sender]},{quoted:ctx.msg});ctx.markReplied();
+  }catch(e){await ctx.reply(e.message.includes('busy')?'⏳ Reactions are busy. Try again shortly.':'⚠️ Reaction unavailable. Please try again.');}
  }
 }));
