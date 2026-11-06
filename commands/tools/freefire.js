@@ -20,6 +20,11 @@ function numberList(a,limit=12){
  const head=a.slice(0,limit).join(', ');
  return a.length>limit?`${head} (+${a.length-limit} more)`:head;
 }
+function fallbackNote(x){
+ if(!x||!x.fallbackRegion)return '';
+ const requested=x.requestedRegion||'the requested region';
+ return `\nProvider fallback: ${x.fallbackRegion} token was used because ${requested} upstream was unavailable.`;
+}
 function formatProfile(p,v){
  return `🎮 Free Fire profile — overview
 Name: ${show(p.name)}
@@ -46,7 +51,7 @@ Avatar: ${show(p.avatar)} • Banner: ${show(p.banner)} • Title: ${show(p.titl
 Equipped outfit: ${idList(p.outfit)} • Weapon skins: ${idList(p.weapons)}
 
 More: ${config.prefix}ffinfo ${v.region} ${v.uid} stats | gear | all
-Source: ${show(p.source)} (unofficial). UID and region may be shared with up to two providers. Data may be cached, incomplete or outdated.`;
+Source: ${show(p.source)} (unofficial). UID and region may be shared with the providers contacted. Data may be cached, incomplete or outdated.${fallbackNote(p)}`;
 }
 function combatLine(label,x){
  const parts=[`${show(x.games)} games`,`${show(x.wins)} wins`,`${show(x.kills)} kills`,`${show(x.headshotKills)} HS kills`,`${show(x.headshots)} headshots`,`${show(x.damage)} damage`,`${show(x.deaths)} deaths`];
@@ -58,7 +63,7 @@ function combatLine(label,x){
 function formatStats(d,v){
  const c=d.csCareer,h=d.heroic;
  return `📊 Free Fire career stats — ${v.uid}
-Provider: ${show(d.source)}. Exact UID was checked; stats may be cached.
+Provider: ${show(d.source)}. Exact UID was checked; stats may be cached.${fallbackNote(d)}
 
 BR solo
 ${combatLine('Solo',d.brCareer.solo)}
@@ -110,7 +115,7 @@ Weapon Glory
 Records: ${show(g.count)} • Top all-time: ${top}
 
 Dynamic Duo: not available from this public UID/region source. No account password, OTP or token was requested.
-Source: ${show(d.source)} (unofficial). Item IDs are provider IDs and may be incomplete.`;
+Source: ${show(d.source)} (unofficial). Item IDs are provider IDs and may be incomplete.${fallbackNote(d)}`;
 }
 function providerLine(r){
  const p=r.provider||{},status=p.status===null||p.status===undefined?'no HTTP status':`HTTP ${p.status}`;
@@ -127,7 +132,14 @@ const info={...base,name:'ffinfo',aliases:['freefireinfo'],description:'Look up 
   await ctx.reply(formatProfile(d.profile,v));
   await ctx.reply(formatStats(d,v));
   return ctx.reply(formatGear(d,v));
- }catch{return ctx.reply('⚠️ Profile lookup failed. Check the UID and game server; the unofficial provider may be unavailable, rate-limited or missing that section.');}
+ }catch(e){
+  if(e?.message==='PROVIDER_REGION_UNAVAILABLE'){
+   const region=e.region||v.region;
+   const fallback=e.fallbackRegion?` The ${e.fallbackRegion} token fallback was also unavailable.`:'';
+   return ctx.reply(`⚠️ The unofficial provider's ${region} data source is temporarily unavailable (missing upstream token/server URL).${fallback} Your UID may still be valid; try again later or use ${config.prefix}ffinfo BD ${v.uid} ${v.section} while ${region} is down.`);
+  }
+  return ctx.reply('⚠️ Profile lookup failed. Check the UID and game server; the unofficial provider may be unavailable, rate-limited or missing that section.');
+ }
 }};
 
 const like={...base,name:'fflike',aliases:['freefirelike'],description:'Like requests are disabled until a verified provider is configured; fail-closed notice only.',usage:'fflike <region> <UID>',async run(ctx){

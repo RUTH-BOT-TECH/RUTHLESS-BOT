@@ -4,7 +4,7 @@ const json=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{'cont
 function context(args){const out=[];return {args,chat:'test@s.whatsapp.net',sender:'test@s.whatsapp.net',reply:async s=>out.push(s),out};}
 async function prepare(c){await like.run(c);const m=/confirm ([a-f0-9]{12})/.exec(c.out.at(-1));assert.ok(m);c.args=['confirm',m[1]];}
 function enableLikes(){const old=ff.LIKE_PROVIDER_VERIFIED;ff.LIKE_PROVIDER_VERIFIED=true;return()=>{ff.LIKE_PROVIDER_VERIFIED=old;};}
-function detailsFixture(uid){return {uid,region:'ME',data:{
+function detailsFixture(uid,region='ME'){return {uid,region,data:{
  personal_show:{basic_info:{account_id:uid,nickname:'Example',region:'ME',level:50,liked:123,prime_privilege_detail:{prime_level:3},weapon_skin_shows:[1,2]},clan_basic_info:{clan_name:'Guild'},pet_info:{name:'Pet',id:9,level:4},profile_info:{avatar_id:10,clothes:[11,12]},social_info:{signature:'Test'},credit_score_info:{credit_score:100},history_ep_info:[{ep_event_id:1,badge_cnt:10,max_level:50,owned_pass:true}],user_spark_info:{level:23,state:'ACTIVE',login_streak_days:103},collab_spark_info:{level:25,state:'ACTIVE',login_streak_days:194}},
  stats:{solo_stats:{account_id:uid,games_played:10,wins:2,kills:20,detailed_stats:{headshot_kills:3,headshots:4,damage:500,deaths:5,revives:1,top_n_times:2,highest_kills:7}},duo_stats:{account_id:uid,games_played:3,wins:1,kills:4,detailed_stats:{headshot_kills:1,headshots:2,damage:100,deaths:2,revives:0,top_n_times:1,highest_kills:3}},quad_stats:{account_id:uid,games_played:5,wins:1,kills:6,detailed_stats:{headshot_kills:2,headshots:3,damage:200,deaths:3,revives:1,top_n_times:2,highest_kills:4}}},
  cs_stats:{cs_stats:{account_id:uid,games_played:8,wins:3,kills:9,detailed_stats:{head_shot_kills:2,damage:400,deaths:4,assists:5,mvp_count:1,streak_wins:2,rating_points:10.5}}},
@@ -21,6 +21,9 @@ test('validates region, numeric UID, info sections and like-region support; neve
  assert.equal(ff.infoArgs(['ME','123456789','bogus']),null);
  assert.equal(ff.count(null),null);assert.equal(ff.count(false),null);assert.equal(ff.count('0'),0);assert.equal(ff.decimal('1.5'),1.5);
  assert.equal(ff.likeRegion('ME'),'me');assert.equal(ff.likeRegion('EU'),null);assert.equal(ff.likeProviderEnabled(),false);
+ assert.equal(ff.infoRegionFallback('ME'),'BD');assert.equal(ff.infoRegionFallback('BR'),null);
+ assert.equal(ff.isProviderTokenFailure('Missing token or server_url in API response data'),true);
+ assert.equal(ff.isProviderTokenFailure('unavailable'),false);
 });
 
 test('info fetch uses the fixed provider, validates exact UID and displays only selected fields',async()=>{
@@ -69,6 +72,58 @@ test('details validates the envelope UID and formats stats, gear and all section
   const stats=context(['ME','123456789','stats']);await info.run(stats);assert.match(stats.out[0],/BR solo/);assert.match(stats.out[0],/Solo: 10 games/);assert.match(stats.out[0],/CS: 8 games/);
   const gear=context(['ME','123456789','gear']);await info.run(gear);assert.match(gear.out[0],/Wishlist/);assert.match(gear.out[0],/Spark fields/);assert.match(gear.out[0],/No account password, OTP or token/);
   const all=context(['ME','123456789','all']);await info.run(all);assert.equal(all.out.length,3);assert.match(all.out[0],/Prime level: 3/);assert.match(all.out[1],/career stats/);assert.match(all.out[2],/equipment & collection/);
+ }finally{global.fetch=old;}
+});
+
+test('info retries ME through a BD token and labels the fallback',async()=>{
+ const old=global.fetch,calls=[];
+ try{
+  global.fetch=async u=>{
+   const url=new URL(u),region=url.searchParams.get('region');calls.push(region);
+   if(region==='ME')return json({error:'Invalid UID or Region (ME). Details: Missing token or server_url in API response data'},500);
+   if(region==='BD')return json({basic_info:{account_id:'123456789',nickname:'Example',region:'ME',level:50,liked:123,prime_privilege_detail:{prime_level:3}}});
+   throw Error('unexpected provider request');
+  };
+  const p=await ff.info('ME','123456789');
+  assert.deepEqual(calls.slice(0,2),['ME','BD']);
+  assert.equal(p.region,'ME');assert.equal(p.fallbackRegion,'BD');assert.equal(p.requestedRegion,'ME');assert.match(p.source,/BD token fallback/);
+  const c=context(['ME','123456789']);await info.run(c);assert.match(c.out[0],/Provider fallback: BD token/);
+ }finally{global.fetch=old;}
+});
+
+test('details retries ME through a BD token when get_all sections report missing upstream token',async()=>{
+ const old=global.fetch,calls=[];
+ const tokenError={uid:'123456789',region:'ME',data:{personal_show:{error:'Missing token or server_url in API response data'},stats:{error:'Missing token or server_url in API response data'}}};
+ try{
+  global.fetch=async u=>{
+   const url=new URL(u),region=url.searchParams.get('region');calls.push(region);
+   if(region==='ME')return json(tokenError);
+   if(region==='BD')return json(detailsFixture('123456789','BD'));
+   throw Error('unexpected provider request');
+  };
+  const d=await ff.details('ME','123456789');
+  assert.deepEqual(calls.slice(0,2),['ME','BD']);
+  assert.equal(d.fallbackRegion,'BD');assert.equal(d.requestedRegion,'ME');assert.match(d.source,/BD token fallback/);
+  assert.equal(d.profile.fallbackRegion,'BD');assert.equal(d.profile.requestedRegion,'ME');
+  const stats=context(['ME','123456789','stats']);await info.run(stats);assert.match(stats.out[0],/Provider fallback: BD token/);assert.match(stats.out[0],/career stats/);
+  const all=context(['ME','123456789','all']);await info.run(all);assert.equal(all.out.length,3);
+  assert.match(all.out[0],/Provider fallback: BD token/);assert.match(all.out[1],/Provider fallback: BD token/);assert.match(all.out[2],/Provider fallback: BD token/);
+ }finally{global.fetch=old;}
+});
+
+test('ME token outage reports provider failure instead of blaming the UID',async()=>{
+ const old=global.fetch;
+ try{
+  global.fetch=async()=>json({error:'Invalid UID or Region (ME). Details: Missing token or server_url in API response data'},500);
+  await assert.rejects(ff.info('ME','123456789'),/PROVIDER_REGION_UNAVAILABLE/);
+  await assert.rejects(ff.details('ME','123456789'),/PROVIDER_REGION_UNAVAILABLE/);
+  const c=context(['ME','123456789','stats']);await info.run(c);
+  assert.equal(c.out.length,1);
+  assert.match(c.out[0],/provider's ME data source is temporarily unavailable/);
+  assert.match(c.out[0],/BD token fallback was also unavailable/);
+  assert.match(c.out[0],/\.ffinfo BD 123456789 stats/);
+  assert.doesNotMatch(c.out[0],/Check the UID/);
+  assert.doesNotMatch(c.out[0],/lookup failed/);
  }finally{global.fetch=old;}
 });
 
