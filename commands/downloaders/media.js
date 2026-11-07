@@ -15,6 +15,9 @@ const specs=[
 const bySite={};for(const [name,,site,mode] of specs) if(!bySite[site] && mode!=='document')bySite[site]={name,mode};
 const commands=[];
 function getError(e) {
+ if(e.code==='YOUTUBE_BOT_CHECK')return '⚠️ YouTube is asking this server to verify it is not a bot. The download is unavailable right now.';
+ if(e.code==='RATE_LIMITED')return '⚠️ The download provider is rate-limiting requests. Please try again later.';
+ if(e.code==='ACCESS_DENIED')return '⚠️ The download provider denied access. Please try another public link later.';
  if(e.message.includes('50 MB')||e.message.includes('too large'))return '⚠️ This file is too large or could not be downloaded within the 50 MB limit.';
  if(e.message.includes('busy'))return '⏳ Downloader is busy. Try again shortly.';
  return '⚠️ Download unavailable right now. Please try another public link later.';
