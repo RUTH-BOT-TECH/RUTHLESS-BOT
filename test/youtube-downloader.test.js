@@ -37,3 +37,21 @@ test('play reports a YouTube bot challenge after search succeeds and both downlo
   assert.match(replies[0],/Searching and downloading/);assert.match(replies.at(-1),/verify it is not a bot/);
  }finally{dl.searchYoutube=oldSearch;global.fetch=oldFetch;health.ensureStartup=oldHealth;console.warn=oldWarn;await fs.rm(dir,{recursive:true,force:true});}
 });
+
+test('YouTube search and downloads pass the bot Node runtime to yt-dlp when supported',async()=>{
+ const oldFetch=global.fetch,oldHealth=health.ensureStartup,oldWarn=console.warn;
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'yt-js-runtime-'));
+ try{
+  const fake=path.join(dir,'fake'),argsFile=path.join(dir,'args');
+  await fs.writeFile(fake,`#!/bin/sh\nprintf '%s\\n' "$@" >> '${argsFile}'\necho '{}'\nexit 1\n`,{mode:0o700});
+  health.ensureStartup=async()=>({yt:{kind:'cli',bin:fake},ffmpegPath:require('ffmpeg-static')});
+  global.fetch=async()=>new Response('error',{status:500});console.warn=()=>{};
+  await assert.rejects(dl.searchYoutube('Me at the zoo',1));
+  await assert.rejects(dl.download('https://youtu.be/jNQXAC9IVRw','youtube','audio'));
+  const args=await fs.readFile(argsFile,'utf8');
+  if(Number(process.versions.node.split('.')[0])>=22){
+   assert.equal((args.match(/--js-runtimes/g)||[]).length,2);
+   assert.equal(args.split('\n').filter(x=>x===`node:${process.execPath}`).length,2);
+  }else assert.doesNotMatch(args,/--js-runtimes/);
+ }finally{global.fetch=oldFetch;health.ensureStartup=oldHealth;console.warn=oldWarn;await fs.rm(dir,{recursive:true,force:true});}
+});

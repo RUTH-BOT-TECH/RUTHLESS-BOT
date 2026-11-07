@@ -5,7 +5,7 @@
 # ⚡ RUTHLESS MD
 **Your WhatsApp. Your bot. Your rules.**
 
-[![Node](https://img.shields.io/badge/Node.js-20.19%2B-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/Node.js-22-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-Multi--Device-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://www.whatsapp.com/)
 [![Status](https://img.shields.io/badge/Status-Work%20in%20Progress-9b6dff?style=for-the-badge)](docs/setup-and-privacy.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-9b6dff?style=for-the-badge)](LICENSE)
@@ -46,7 +46,7 @@ npm install
 npm start
 ```
 
-Node.js 20.19+ is required. Set your environment variables first.
+Node.js 22 is required for the bot. Set your environment variables first.
 
 Project code is MIT licensed; third-party components have their own terms, including AGPL-3.0 for IMG.LY background removal.
 
