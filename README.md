@@ -39,6 +39,10 @@ On Render, enter **`SESSION_ID`** and **`OWNER_NUMBER`** (international digits, 
 
 [![Setup, privacy and backups](https://img.shields.io/badge/SETUP-PRIVACY%20%26%20BACKUPS-9b6dff?style=for-the-badge)](docs/setup-and-privacy.md)
 
+## 🧩 Opt-in sticker collection
+
+The owner can enable `.stickercollect on` in a group with members' permission. The bot announces collection, then sends batches of ten newly posted stickers as **individual stickers** to its linked account's own chat, with `Ruth` / `If you can steal it 😹` metadata. `.stickercollect status` checks the group; `.stickercollect off` stops collection and removes that group's unsent items. It is not an anti-copy feature or automatic favourites, and live WhatsApp delivery is unverified. Pending stickers are stored locally and may be lost on ephemeral hosting; see the [privacy details](docs/setup-and-privacy.md#opt-in-sticker-collection-experimental).
+
 ## 💻 Run locally
 
 ```bash

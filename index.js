@@ -27,7 +27,7 @@ async function main() {
   const tenantId = `${digest.slice(0,8)}-${digest.slice(8,12)}-${digest.slice(12,16)}-${digest.slice(16,20)}-${digest.slice(20)}`;
   const localDataFile = short ? path.join(__dirname,'database',`data-${short.id}.json`) : undefined;
   const db = await new Database(config.databaseUrl,localDataFile,{serviceUrl:config.databaseUrl ? '' : config.dataServiceUrl,serviceToken:config.dataServiceToken,allowDirectMongo:!!config.databaseUrl || config.allowDirectMongo,tenantId}).connect();
-  let stopped = false, activeSocket = null, sessionSync = null, dataBackup = null, pairingClient = null, stopReminders = () => {}, stopProfileClone = () => {};
+  let stopped = false, activeSocket = null, sessionSync = null, dataBackup = null, pairingClient = null, stopReminders = () => {}, stopProfileClone = () => {}, stopStickerCollection = () => {};
   if (short) {
     const client = pairingClient = new PairingClient(config.pairingApiUrl, config.sessionId);
     if (!config.databaseUrl && !config.dataServiceUrl) {
@@ -36,7 +36,7 @@ async function main() {
     }
     db.pairingClient = client;
     sessionSync = new SessionSync(client, db, {onContention: () => { console.warn('Session is still in use. Waiting for the previous bot to stop; check for duplicate deployments.'); health.start(); }, onError: code => { db.lastError = code; }, onLost: () => {
-      stopped = true; connected = false; health.setConnected(false); stopReminders(); stopProfileClone();
+      stopped = true; connected = false; health.setConnected(false); stopReminders(); stopProfileClone(); stopStickerCollection();
       diagnostics.record('SESSION_LEASE_LOST','error');
       console.error('Session lease lost. The bot has stopped to prevent duplicate instances.');
       try { activeSocket?.end(); } catch {}
@@ -46,7 +46,7 @@ async function main() {
   // Keep automatic package writes after the exclusive session lease has been obtained.
   const youtubeDiagnostics = require('./lib/downloader-health').ensureStartup();
   const storedPrefix=await db.get('settings:prefix',config.prefix);if(typeof storedPrefix==='string'&&/^[.!#$%&?~]{1,3}$/.test(storedPrefix))config.prefix=storedPrefix;
-  db.stopAfterDelete = () => { stopped = true; connected = false; stopReminders(); stopProfileClone(); health.setConnected(false); health.markNotReady(); if (sessionSync) { sessionSync.closed = true; sessionSync.stopTimers(); } if (dataBackup) { dataBackup.closed = true; clearTimeout(dataBackup.timer); db.onChange = null; } setTimeout(() => { try { activeSocket?.end(); } catch {} }, 100); };
+  db.stopAfterDelete = () => { stopped = true; connected = false; stopReminders(); stopProfileClone(); stopStickerCollection(); health.setConnected(false); health.markNotReady(); if (sessionSync) { sessionSync.closed = true; sessionSync.stopTimers(); } if (dataBackup) { dataBackup.closed = true; clearTimeout(dataBackup.timer); db.onChange = null; } setTimeout(() => { try { activeSocket?.end(); } catch {} }, 100); };
   const auth = await createSession(db, sessionSync ? '' : config.sessionId, {onAuthChange: () => sessionSync?.changed()});
   const commands = loadCommands();
   await gameState.cleanup(db);
@@ -79,7 +79,7 @@ async function main() {
         if (update.connection === 'open') {
           if (stopped || activeSocket !== sock) return;
           void notifyConnected();
-          connected = true; diagnostics.record('WHATSAPP_CONNECTED'); health.setConnected(true); youtubeDiagnostics.then(async result => {if((!result.yt||!result.ffmpeg||result.updated===false)&&connected&&activeSocket===sock){const text=(!result.yt||!result.ffmpeg)?require('./lib/downloader-health').guidance:'⚠️ Automatic yt-dlp update failed. Downloads will use the installed version. See docs/setup-and-privacy.md to update it manually.';try{await sock.sendMessage(`${config.ownerNumber}@s.whatsapp.net`,{text});}catch{console.warn('Could not deliver downloader setup notice privately to the owner.');}}}); stopReminders(); stopReminders=require('./lib/reminders').start(sock,db); stopExtras(); stopExtras=extras.startTimers(sock,db); stopProfileClone(); stopProfileClone=require('./lib/profile-clone').start(sock,db); console.log('WhatsApp connected.'); await auth.saveCreds(); sessionSync?.changed(); await dataBackup?.notifyPending(); stopHeartbeat(); if (config.heartbeat && pairingClient) stopHeartbeat = require('./lib/heartbeat').startHeartbeat({client:pairingClient,db,sock,ownerNumber:config.ownerNumber});
+          connected = true; diagnostics.record('WHATSAPP_CONNECTED'); health.setConnected(true); stopStickerCollection(); stopStickerCollection=require('./lib/sticker-collector').start(sock,db); youtubeDiagnostics.then(async result => {if((!result.yt||!result.ffmpeg||result.updated===false)&&connected&&activeSocket===sock){const text=(!result.yt||!result.ffmpeg)?require('./lib/downloader-health').guidance:'⚠️ Automatic yt-dlp update failed. Downloads will use the installed version. See docs/setup-and-privacy.md to update it manually.';try{await sock.sendMessage(`${config.ownerNumber}@s.whatsapp.net`,{text});}catch{console.warn('Could not deliver downloader setup notice privately to the owner.');}}}); stopReminders(); stopReminders=require('./lib/reminders').start(sock,db); stopExtras(); stopExtras=extras.startTimers(sock,db); stopProfileClone(); stopProfileClone=require('./lib/profile-clone').start(sock,db); console.log('WhatsApp connected.'); await auth.saveCreds(); sessionSync?.changed(); await dataBackup?.notifyPending(); stopHeartbeat(); if (config.heartbeat && pairingClient) stopHeartbeat = require('./lib/heartbeat').startHeartbeat({client:pairingClient,db,sock,ownerNumber:config.ownerNumber});
           if (shouldExport) {
             shouldExport = false;
             const id = await auth.exportSession();
@@ -89,7 +89,7 @@ async function main() {
           }
         }
         if (update.connection === 'close') {
-          connected = false; diagnostics.record('WHATSAPP_DISCONNECTED','error'); health.setConnected(false); stopReminders(); stopExtras(); stopProfileClone(); stopHeartbeat(); const status = update.lastDisconnect?.error?.output?.statusCode;
+          connected = false; diagnostics.record('WHATSAPP_DISCONNECTED','error'); health.setConnected(false); stopReminders(); stopExtras(); stopProfileClone(); stopHeartbeat(); stopStickerCollection(); const status = update.lastDisconnect?.error?.output?.statusCode;
           if (status === DisconnectReason.loggedOut) { console.error(`Session expired, pair again at ${config.pairingSiteUrl || '<PAIRING_SITE_URL>'}`); stopped = true; await sessionSync?.close({save:false}); }
           else { console.warn('Disconnected; retrying in 5 seconds.'); setTimeout(connect, 5000); }
         }
@@ -108,6 +108,7 @@ async function main() {
         let deleted = false;
         try { deleted = await processIncoming(sock, msg, db, {commands}); } catch (err) { console.error('Group processing error:', err.message); }
         if (!deleted) {
+          try { await require('./lib/sticker-collector').collect(sock,msg,db); } catch { console.warn('Sticker collection or delivery failed; pending batches will retry.'); }
           try { await processAutoDL(sock, msg, db); } catch (err) { console.error('Autodownload error:', err.message); }
           await handle(sock, msg, commands, db);
         }
@@ -118,7 +119,7 @@ async function main() {
   };
   connect();
   let shutdownStarted = false;
-  const shutdown = async () => { if (shutdownStarted) return; shutdownStarted = true; stopped = true; stopReminders(); stopProfileClone(); clearInterval(gameCleanup); health.close(); try { activeSocket?.end(); } catch {} try { await dataBackup?.close(); } catch { console.error('Settings backup failed during shutdown; local data retained.'); } try { await sessionSync?.close(); } catch { console.error('Session upload failed during shutdown; local snapshot retained.'); } await db.close(); process.exit(0); };
+  const shutdown = async () => { if (shutdownStarted) return; shutdownStarted = true; stopped = true; stopReminders(); stopProfileClone(); stopStickerCollection(); clearInterval(gameCleanup); health.close(); try { activeSocket?.end(); } catch {} try { await dataBackup?.close(); } catch { console.error('Settings backup failed during shutdown; local data retained.'); } try { await sessionSync?.close(); } catch { console.error('Session upload failed during shutdown; local snapshot retained.'); } await db.close(); process.exit(0); };
   db.requestProcessStop = () => { if (shutdownStarted) return false; setTimeout(() => shutdown().catch(() => { console.error('Graceful shutdown failed.'); process.exitCode = 1; }), 1000); return true; };
   process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
 }
