@@ -11,8 +11,22 @@ test('RUTHLESS AI brands replies while aiinfo honestly identifies its provider',
   global.fetch=async(_url,opts)=>{request=JSON.parse(opts.body);return new Response(JSON.stringify({choices:[{message:{content:'Hello!'}}]}));};
   const ctx={chat:'branding-chat',sender:'branding-sender',args:['Hello'],reply:async text=>replies.push(text)};
   ai.clear(ai.key(ctx));await commands.get('ai').run(ctx);
-  assert.match(replies.at(-1),/RUTHLESS AI/);assert.doesNotMatch(replies.at(-1),/Mistral/);
+  assert.equal(replies.length,1);assert.match(replies.at(-1),/RUTHLESS AI/);assert.doesNotMatch(replies.at(-1),/Mistral|Thinking/);
   assert.match(request.messages[0].content,/RUTHLESS AI/);assert.match(request.messages[0].content,/Mistral Nemo via LLM7/);
   replies.length=0;await commands.get('aiinfo').run(ctx);assert.match(replies[0],/Mistral Nemo via LLM7/);assert.match(replies[0],/sent to LLM7/);
  }finally{global.fetch=old;}
+});
+
+test('ordinary identity replies use only the bot brand; asking for model details remains honest',async()=>{
+ const commands=loadCommands(),sent=[],old=global.fetch;let called=0;
+ try{
+  global.fetch=async(_url,opts)=>{called++;const body=JSON.parse(opts.body);assert.match(body.messages[0].content,/If explicitly asked/);return new Response(JSON.stringify({choices:[{message:{content:'Mistral Nemo via LLM7'}}]}));};
+  const ctx={chat:'identity',sender:'one',args:['who','are','you?'],reply:async text=>sent.push(text)};
+  await commands.get('ai').run(ctx);assert.equal(called,0);assert.equal(sent.length,1);assert.match(sent[0],/RUTHLESS AI/);assert.doesNotMatch(sent[0],/Mistral|LLM7|Thinking/);
+  sent.length=0;ctx.args=['what','model','powers','you?'];await commands.get('ai').run(ctx);assert.equal(called,1);assert.equal(sent.length,1);assert.match(sent[0],/Mistral Nemo via LLM7/);
+ }finally{global.fetch=old;}
+});
+test('.ask pdf routes to the PDF command instead of an unrelated chat answer',async()=>{
+ const commands=loadCommands(),sent=[];const ctx={commands,invoked:'ask',args:['pdf'],chat:'123456789@s.whatsapp.net',sender:'123456789@s.whatsapp.net',msg:{key:{remoteJid:'123456789@s.whatsapp.net'},message:{conversation:'.ask pdf'}},reply:async text=>sent.push(text)};
+ await commands.get('ask').run(ctx);assert.equal(sent.length,1);assert.match(sent[0],/askpdf/);assert.match(sent[0],/LLM7/);
 });

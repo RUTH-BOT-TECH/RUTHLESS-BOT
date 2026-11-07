@@ -27,7 +27,7 @@ test('slap acknowledges with an emoji and one GIF; failure gives one useful repl
   await x.db.set('settings:commandreact',true);
   reaction.gif=async()=>Buffer.from('gif');
   const m=msg('.slap',{target:person});m.key.id='slap';await handle(x.sock,m,loadCommands(),x.db);
-  assert.equal(x.sent.length,2);assert.equal(x.sent[0].payload.react.text,'🤖');assert.ok(x.sent[1].payload.video);assert.equal(x.sent[1].payload.caption,`@2348012345678 slapped @2348087654321`);assert.doesNotMatch(x.sent[1].payload.caption,/source|fetching/i);
+  assert.equal(x.sent.length,2);assert.equal(x.sent[0].payload.react.text,'👋');assert.ok(x.sent[1].payload.video);assert.equal(x.sent[1].payload.caption,`@2348012345678 slapped @2348087654321`);assert.doesNotMatch(x.sent[1].payload.caption,/source|fetching/i);
   reaction.gif=async()=>{throw Error('offline')};const failed=msg('.punch',{target:person});failed.key.id='punch';await handle(x.sock,failed,loadCommands(),x.db);
   assert.equal(x.sent.length,4);assert.ok(x.sent[2].payload.react);assert.match(x.sent[3].payload.text,/Reaction unavailable/);assert.doesNotMatch(x.sent[3].payload.text,/source|fetching/i);
  }finally{reaction.gif=old;await x.close();}

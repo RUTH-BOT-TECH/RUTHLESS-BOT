@@ -9,19 +9,19 @@ function unique(m){return [...new Set(m.values())].filter(x=>!x.ownerOnly);}
 test('menu summary is compact, shows dynamic counts, tags sender and does not use pushName',async()=>{
  const x=await setup();try{const commands=loadCommands();await handle(x.sock,message('.menu'),commands,x.db);const p=x.sent.at(-1).payload,caption=p.caption||p.text;
   assert.ok(Buffer.isBuffer(p.image));assert.deepEqual(p.mentions,[sender]);assert.match(caption,/@2348012345678/);assert.doesNotMatch(caption,/Dark eye developer/);
-  assert.match(caption,new RegExp('Commands: '+unique(commands).length));assert.match(caption,/\.menu ai \(34\)/);assert.match(caption,/\.menu downloaders \(48\)/);assert.doesNotMatch(caption,/\.menu owner\b/);
+  assert.match(caption,new RegExp('Commands: '+unique(commands).length));assert.match(caption,/\.menu ai \(36\)/);assert.match(caption,/\.menu downloaders \(48\)/);assert.doesNotMatch(caption,/\.menu owner\b/);
   assert.ok(caption.startsWith('┌─❖\n│ '));assert.match(caption,/└┬❖\n/);assert.ok(caption.endsWith('└───────❖'));assert.ok(caption.length<500);assert.ok(caption.split('\n').length<=15);
  }finally{await x.close();}
 });
 test('category page shows its own primary commands in aligned pairs and preserves help',async()=>{
  const x=await setup();try{const commands=loadCommands();await handle(x.sock,message('.menu ai'),commands,x.db);const p=x.sent.at(-1).payload,t=p.caption||p.text;
-  assert.ok(Buffer.isBuffer(p.image));assert.match(t,/│ AI \(34\)/);assert.match(t,/│ ➤ \.ai\s+\.aiavatar/);assert.match(t,/\.paraphrase/);assert.match(t,/\.aiinfo/);assert.doesNotMatch(t,/\.ytmp3/);assert.ok(t.split('\n').length<=40);assert.ok(t.startsWith('```┌─❖'));assert.ok(t.endsWith('└───────❖```'));
+  assert.ok(Buffer.isBuffer(p.image));assert.match(t,/│ AI \(36\)/);assert.match(t,/│ ➤ \.ai\s+\.aiavatar/);assert.match(t,/\.paraphrase/);assert.match(t,/\.aiinfo/);assert.doesNotMatch(t,/\.ytmp3/);assert.ok(t.split('\n').length<=40);assert.ok(t.startsWith('```┌─❖'));assert.ok(t.endsWith('└───────❖```'));
   await handle(x.sock,message('.help weather'),commands,x.db);assert.match(x.sent.at(-1).payload.text,/weather/);assert.match(x.sent.at(-1).payload.text,/Open-Meteo/);
  }finally{await x.close();}
 });
 test('unknown category reports actual categories; menu all sends an owner-filtered text file',async()=>{
- const x=await setup();try{const commands=loadCommands();await handle(x.sock,message('.menu fake'),commands,x.db);const t=x.sent.at(-1).payload.text;assert.match(t,/UNKNOWN CATEGORY/);assert.match(t,/\.menu ai \(34\)/);assert.match(t,/\.menu media \(47\)/);assert.ok(t.endsWith('└───────❖'));
-  await handle(x.sock,message('.menu all'),commands,x.db);const p=x.sent.at(-1).payload;assert.equal(p.fileName,'menu.txt');assert.equal(p.mimetype,'text/plain');assert.ok(Buffer.isBuffer(p.document));const body=p.document.toString('utf8');assert.match(body,/AI \(34\)/);assert.match(body,/\.ai \(\.chatgpt/);assert.match(body,/DOWNLOADERS \(48\)/);assert.doesNotMatch(body,/\.backupnow\b|\.setprefix\b/);assert.ok(body.trimEnd().endsWith('└───────❖'));
+ const x=await setup();try{const commands=loadCommands();await handle(x.sock,message('.menu fake'),commands,x.db);const t=x.sent.at(-1).payload.text;assert.match(t,/UNKNOWN CATEGORY/);assert.match(t,/\.menu ai \(36\)/);assert.match(t,/\.menu media \(47\)/);assert.ok(t.endsWith('└───────❖'));
+  await handle(x.sock,message('.menu all'),commands,x.db);const p=x.sent.at(-1).payload;assert.equal(p.fileName,'menu.txt');assert.equal(p.mimetype,'text/plain');assert.ok(Buffer.isBuffer(p.document));const body=p.document.toString('utf8');assert.match(body,/AI \(36\)/);assert.match(body,/\.ai \(\.chatgpt/);assert.match(body,/DOWNLOADERS \(48\)/);assert.doesNotMatch(body,/\.backupnow\b|\.setprefix\b/);assert.ok(body.trimEnd().endsWith('└───────❖'));
  }finally{await x.close();}
 });
 test('large dynamic categories paginate with no more than 40 lines, no missing names, and invalid pages are rejected',async()=>{

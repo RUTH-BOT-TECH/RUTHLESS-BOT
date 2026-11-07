@@ -46,7 +46,7 @@ npm install
 npm start
 ```
 
-Node.js 22 is required for the bot. Set your environment variables first.
+Node.js 22.13 or newer within the Node 22 series is required for the bot. Set your environment variables first.
 
 Project code is MIT licensed; third-party components have their own terms, including AGPL-3.0 for IMG.LY background removal.
 

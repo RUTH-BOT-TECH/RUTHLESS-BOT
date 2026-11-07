@@ -80,7 +80,7 @@ async function handle(sock, msg, commands, db) {
       let timer;
       try {
         await Promise.race([
-          Promise.resolve().then(() => sock.sendMessage(chat, { react: { text: '🤖', key: msg.key } })),
+          Promise.resolve().then(() => sock.sendMessage(chat, { react: { text: require('./lib/command-reactions').reactionFor(command,name,parts), key: msg.key } })),
           new Promise(resolve => { timer=setTimeout(resolve, 3000); timer.unref?.(); })
         ]);
       } catch { console.warn('Could not send command reaction.'); }
