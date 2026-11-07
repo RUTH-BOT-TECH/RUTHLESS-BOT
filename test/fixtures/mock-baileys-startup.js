@@ -7,7 +7,7 @@ Module._load=function(request,parent,isMain){
  if(request!=='@whiskeysockets/baileys')return loaded;
  return {...loaded,default:()=>{
   const ev=new EventEmitter();
-  const sock={ev,user:{id:'2348011111111@s.whatsapp.net'},sendMessage:async()=>({}),end:()=>{}};
+  const sock={ev,user:{id:'2348011111111@s.whatsapp.net'},sendMessage:async(jid,content)=>{if(process.env.TEST_CONNECTION_NOTICE==='1' && content.text?.includes('CONNECTED SUCCESSFULLY'))console.log(`Mock connection notice: ${jid}`);return {};},end:()=>{}};
   setTimeout(()=>ev.emit('connection.update',{connection:'open'}),20).unref();
   return sock;
  }};

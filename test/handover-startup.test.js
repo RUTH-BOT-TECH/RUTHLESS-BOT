@@ -23,10 +23,10 @@ test('new bot binds readiness while lease is held, then connects after the old c
  const dataFile=path.join(project,'database',`data-${session.id}.json`),sessionDir=path.join(project,'session',session.id);
  let child;
  try{
-  child=spawn(process.execPath,['--require',path.join(__dirname,'fixtures/mock-baileys-startup.js'),path.join(project,'index.js')],{cwd:project,env:{...process.env,OWNER_NUMBER:'2348012222222',SESSION_ID:session.sessionId,PORT:String(port),DATABASE_URL:'',DATA_SERVICE_URL:'',PAIRING_API_URL:'',PAIRING_SITE_URL:'',HEARTBEAT:'off'},stdio:['ignore','pipe','pipe']});
-  const readyLog=waitForLine(child.stdout,'Health server listening'),connectedLog=waitForLine(child.stdout,'WhatsApp connected.');let stderr='';child.stderr.on('data',b=>stderr+=b);
+  child=spawn(process.execPath,['--require',path.join(__dirname,'fixtures/mock-baileys-startup.js'),path.join(project,'index.js')],{cwd:project,env:{...process.env,OWNER_NUMBER:'2348012222222',SESSION_ID:session.sessionId,PORT:String(port),DATABASE_URL:'',DATA_SERVICE_URL:'',PAIRING_API_URL:'',PAIRING_SITE_URL:'',HEARTBEAT:'off',TEST_CONNECTION_NOTICE:'1'},stdio:['ignore','pipe','pipe']});
+  const readyLog=waitForLine(child.stdout,'Health server listening'),connectedLog=waitForLine(child.stdout,'WhatsApp connected.'),noticeLog=waitForLine(child.stdout,'Mock connection notice: 2348012222222@s.whatsapp.net');let stderr='';child.stderr.on('data',b=>stderr+=b);
   await readyLog;const base=`http://127.0.0.1:${port}`;assert.equal((await fetch(base+'/ready')).status,200);assert.equal((await fetch(base+'/health')).status,503);assert.equal(acquired,false);assert.equal(backupFetched,false,'backup must restore after exclusive handover');
-  held=false;await connectedLog;assert.equal(acquired,true);assert.equal(backupFetched,true);assert.equal((await fetch(base+'/health')).status,200);
+  held=false;await connectedLog;await noticeLog;assert.equal(acquired,true);assert.equal(backupFetched,true);assert.equal((await fetch(base+'/health')).status,200);
   child.kill('SIGTERM');const [code]=await once(child,'exit');assert.equal(code,0,stderr);
  }finally{
   if(child&&child.exitCode===null){child.kill('SIGKILL');await once(child,'exit').catch(()=>{});}

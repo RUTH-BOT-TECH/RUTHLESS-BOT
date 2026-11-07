@@ -83,7 +83,7 @@ test('local WebSocket transport exercises command replies, images, OCR, and fail
    out=await request('.tts Hello Ruthless, this is a voice test.');assert.equal(out.at(-1).ptt,true);assert.equal(Buffer.from(out.at(-1).audio.base64,'base64').subarray(0,4).toString(),'OggS');console.log('LIVE WEBSOCKET: Google Translate returned an Opus voice note');
   }
   if(process.env.RUN_LIVE_AI_TESTS==='1'){
-   out=await request('.tr es Good morning, my friend.');assert.match(out.at(-1).text,/Mistral Nemo via LLM7/);assert.match(out.at(-1).text,/buenos d[ií]as/i);
+   out=await request('.tr es Good morning, my friend.');assert.match(out.at(-1).text,/RUTHLESS AI/);assert.match(out.at(-1).text,/buenos d[ií]as/i);
    console.log('LIVE WEBSOCKET: LLM7 translation returned',out.at(-1).text.replace(/\n/g,' '));
   }else{
    global.fetch=async()=>new Response('',{status:429});out=await request('.ai hello');assert.match(out.at(-1).text,/unavailable or rate-limited/);

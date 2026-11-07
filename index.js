@@ -64,6 +64,7 @@ async function main() {
     // Exclude those status envelopes from retry caching without changing normal message retries.
     if (sock.messageRetryManager) { try { groupStatus.guardRetryCache(sock); } catch { console.warn('Group Status retry guard unavailable; Group Status sending disabled.'); } }
     activeSocket = sock;
+    const notifyConnected = require('./lib/connection-notice').createConnectionNotice(sock, config);
     const statuses=extras.statusQueue(sock,db);
     sock.ev.on('call', calls => { extras.calls(sock,calls,db).catch(err=>console.error('Call handling failed:',err.message)); });
     sock.ev.on('creds.update', () => { auth.saveCreds().then(() => sessionSync?.changed()).catch(err => console.error('Credential save failed:', err.message)); });
@@ -76,6 +77,8 @@ async function main() {
           console.log(`Pairing code (keep private): ${await sock.requestPairingCode(config.pairingNumber)}`);
         }
         if (update.connection === 'open') {
+          if (stopped || activeSocket !== sock) return;
+          void notifyConnected();
           connected = true; diagnostics.record('WHATSAPP_CONNECTED'); health.setConnected(true); youtubeDiagnostics.then(async result => {if((!result.yt||!result.ffmpeg||result.updated===false)&&connected&&activeSocket===sock){const text=(!result.yt||!result.ffmpeg)?require('./lib/downloader-health').guidance:'⚠️ Automatic yt-dlp update failed. Downloads will use the installed version. See docs/setup-and-privacy.md to update it manually.';try{await sock.sendMessage(`${config.ownerNumber}@s.whatsapp.net`,{text});}catch{console.warn('Could not deliver downloader setup notice privately to the owner.');}}}); stopReminders(); stopReminders=require('./lib/reminders').start(sock,db); stopExtras(); stopExtras=extras.startTimers(sock,db); stopProfileClone(); stopProfileClone=require('./lib/profile-clone').start(sock,db); console.log('WhatsApp connected.'); await auth.saveCreds(); sessionSync?.changed(); await dataBackup?.notifyPending(); stopHeartbeat(); if (config.heartbeat && pairingClient) stopHeartbeat = require('./lib/heartbeat').startHeartbeat({client:pairingClient,db,sock,ownerNumber:config.ownerNumber});
           if (shouldExport) {
             shouldExport = false;
