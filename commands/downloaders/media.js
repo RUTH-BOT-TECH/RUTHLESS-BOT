@@ -39,11 +39,10 @@ async function sendResult(ctx,link,site,mode,requested,options={}) {
 }
 for(const [name,aliases,site,mode] of specs)commands.push(make(name,aliases,`Download supported public ${site} content using yt-dlp.`,`${name} <${site} URL>`,async ctx=>{
  const link=ctx.args[0];if(ctx.args.length!==1||!dl.validLink(link,site))return ctx.reply(`⚠️ Usage: ${config.prefix}${name} <${site} URL>\nExample: ${config.prefix}${name} ${site==='youtube'?'https://www.youtube.com/watch?v=jNQXAC9IVRw':`https://${dl.domains[site][0]}/...`}`);
- await ctx.reply('⏳ Downloading…');await sendResult(ctx,link,site,mode);
+await sendResult(ctx,link,site,mode);
 }));
 for(const [name,aliases,mode] of [['ytplay',['play','song'],'audio'],['video',[],'video']])commands.push(make(name,aliases,'Search YouTube and download the first result using yt-dlp.',`${name} <search terms>`,async ctx=>{
  const query=ctx.args.join(' ').trim();if(!query||query.length>200)return ctx.reply(`⚠️ Usage: ${config.prefix}${name} <search terms>\nExample: ${config.prefix}${name} Me at the zoo`);
- await ctx.reply('⏳ Searching and downloading…');
  try{if(dl.validLink(query,'youtube'))return await sendResult(ctx,query,'youtube',mode);const [found]=await dl.searchYoutube(query,1);if(!found)return ctx.reply('⚠️ No YouTube results found.');await sendResult(ctx,found.url,'youtube',mode,found.title);}catch(e){await ctx.reply(getError(e));}
 }));
 commands.push(make('yts',['ytsearch'],'Search YouTube for up to five results using yt-dlp.','yts <search terms>',async ctx=>{

@@ -34,7 +34,7 @@ test('play reports a YouTube bot challenge after search succeeds and both downlo
   global.fetch=async()=>new Response('error',{status:500});console.warn=()=>{};
   const ctx={args:['Me','at','the','zoo'],reply:async text=>replies.push(text)};
   await media.find(x=>x.aliases.includes('play')).run(ctx);
-  assert.match(replies[0],/Searching and downloading/);assert.match(replies.at(-1),/verify it is not a bot/);
+  assert.equal(replies.length,1);assert.match(replies[0],/verify it is not a bot/);
  }finally{dl.searchYoutube=oldSearch;global.fetch=oldFetch;health.ensureStartup=oldHealth;console.warn=oldWarn;await fs.rm(dir,{recursive:true,force:true});}
 });
 

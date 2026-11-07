@@ -9,8 +9,6 @@ async function requireMedia(ctx,types,usageText) {
   const msg=media.sourceMessage(ctx.msg), info=media.mediaInfo(msg);
   if (!info || !types.includes(info.type)) { await usage(ctx,usageText,`${usageText.split(' ')[0]} (reply to ${types.join(' or ')})`); return null; }
   if (Number(info.data.fileLength||0)>media.LIMIT) {await ctx.reply('⚠️ Media exceeds the 50 MB limit.');return null;}
-  // Video conversion, uploads and local AI can take substantially longer than quick image edits.
-  if (info.type==='video' || info.type==='audio' || ['tourl','upload','tourl2','imgtourl','removebg','remove-bg'].includes(ctx.invoked)) await ctx.reply('⏳ Working…');
   try {return {msg,info,buffer:await media.download(ctx.sock,msg)};}
   catch(e) {await ctx.reply(e.message.includes('50 MB')?'⚠️ Media exceeds the 50 MB limit.':'⚠️ Could not download this media. Try another message.');return null;}
 }
@@ -117,7 +115,6 @@ module.exports=commands;
 
 for(const name of ['ttp','ttp2','ttp3','ttp4','ttp5','attp']) commands.push(cmd(name,[],`Create a ${name==='attp'?'color-changing animated':'text'} sticker locally.`,`${name} <text>`,async ctx=>{
  const text=ctx.args.join(' ').trim();if(!text || text.length>80)return usage(ctx,`${name} <text>`,`${name} Hello world`);
- if(name==='attp') await ctx.reply('⏳ Making animated sticker…');
  try {const renderer=require('../../lib/text-sticker');const sticker=name==='attp'?await renderer.animated(text):await renderer.render(text,name);await output(ctx,{sticker});}
  catch{await ctx.reply('⚠️ Could not render this text sticker. Try shorter text.');}
 }));

@@ -20,7 +20,6 @@ async function metadataApple(raw){const u=new URL(raw);if(u.protocol!=='https:'|
 async function metadataTidal(raw){const u=new URL(raw);if(u.protocol!=='https:'||!['tidal.com','www.tidal.com'].includes(u.hostname)||u.port||u.username||u.password)throw Error('Invalid TIDAL URL');const m=/^\/(?:browse\/)?track\/(\d+)\/?$/.exec(u.pathname);if(!m)throw Error('Invalid track');const $=cheerio.load(await urlFetch(`https://tidal.com/browse/track/${m[1]}`));const title=$('meta[property="og:title"]').attr('content')||'';const index=title.indexOf(' - ');if(index<1)throw Error('Track metadata unavailable');return {artist:title.slice(0,index),title:title.slice(index+3),source:'TIDAL public page'};}
 function normalize(s){return String(s).normalize('NFKD').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();}
 async function match(ctx,track) {
- await ctx.reply(`⏳ Finding and downloading a match for ${track.artist} — ${track.title}. A short iTunes preview may arrive first.`);
  let previewSent=false;
  try {
   const candidates=await itunes(`${track.artist} ${track.title}`,5);

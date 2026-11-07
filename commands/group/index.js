@@ -91,7 +91,7 @@ const commands = [
     const info = context(ctx.msg), q = info.quotedMessage;
     if (!q || !inner(q).imageMessage) return usage(ctx,'setpp <reply to image>','setpp (reply to an image)');
     if (Number(inner(q).imageMessage.fileLength || 0) > 50*1024*1024) return ctx.reply('⚠️ Media exceeds the 50 MB limit.');
-    await ctx.reply('⏳ Updating picture…');
+
     const quoted = { key: { remoteJid: ctx.chat, id: info.stanzaId, participant: info.participant }, message: q };
     let data;
     try { data=await require('../../lib/media').download(ctx.sock,quoted); }

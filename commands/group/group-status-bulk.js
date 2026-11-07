@@ -40,7 +40,6 @@ const bulk={name:'gpostall',aliases:['gstatusall'],category:'owner',ownerOnly:tr
   drafts.delete(ctx.sender);active=true;
   try{
    let submitted=0,uncertain=0,skipped=0;
-   await ctx.reply(`⏳ Sending the status to up to ${d.ids.length} opted-in groups. No ordinary group messages will be sent.`);
    for(const [index,id] of d.ids.entries()){
     if(!Object.hasOwn(joined,id)||await ctx.db.get(PREFIX+id,false)!==true){skipped++;continue;}
     try{if(d.type==='text')await status.send(ctx.sock,id,d.text);else await status.sendMedia(ctx.sock,id,d.type,d.data,d.text);submitted++;}catch{uncertain++;}
@@ -61,7 +60,7 @@ const bulk={name:'gpostall',aliases:['gstatusall'],category:'owner',ownerOnly:tr
  if(ids.length>MAX_GROUPS)return ctx.reply(`⚠️ More than ${MAX_GROUPS} groups opted in. Reduce the audience first; nothing was sent.`);
  if(!drafts.has(ctx.sender)&&drafts.size+preparing>=2)return ctx.reply('⚠️ Too many pending or preparing previews. Try again shortly.');
  if(preparing>=2)return ctx.reply('⏳ Media preparation is busy. Try again shortly.');
- let data;if(info){preparing++;try{await ctx.reply('⏳ Preparing your media locally…');data=await prepareMedia(ctx,source,info);}catch(err){return ctx.reply(err.message.includes('30 seconds')?'⚠️ Video must be 30 seconds or shorter. Nothing was sent.':err.message.includes('size limit')?'⚠️ Media exceeds the 16 MB limit. Nothing was sent.':'⚠️ Could not prepare this media. Nothing was sent.');}finally{preparing--;}}
+ let data;if(info){preparing++;try{data=await prepareMedia(ctx,source,info);}catch(err){return ctx.reply(err.message.includes('30 seconds')?'⚠️ Video must be 30 seconds or shorter. Nothing was sent.':err.message.includes('size limit')?'⚠️ Media exceeds the 16 MB limit. Nothing was sent.':'⚠️ Could not prepare this media. Nothing was sent.');}finally{preparing--;}}
  // Replacing one owner's earlier preview never sends it.
  const token=crypto.randomBytes(6).toString('hex');drafts.set(ctx.sender,{token,ids,type:info?.type||'text',text,data,expires:Date.now()+120000});
  return ctx.reply(`📋 Group Status preview: ${info?.type||'text'}, ${ids.length} opted-in joined groups. Nothing sent yet.\nConfirm within 2 minutes: ${config.prefix}gpostall confirm ${token}\nCancel: ${config.prefix}gpostall cancel`);

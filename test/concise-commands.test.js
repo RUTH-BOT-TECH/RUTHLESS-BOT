@@ -23,8 +23,8 @@ test('music match keeps actual preview and exact fallback attribution without du
   dl.download=async()=>({data:Buffer.from('full'),ext:'mp3',title:'Fela Water official',source:'fallback provider example'});
   media.convert=async()=>Buffer.from('preview');
   const ctx=context(['https://open.spotify.com/track/11dFghVXANMlKmJXsNCbNl']);await c.get('spotify').run(ctx);
-  assert.equal(ctx.out.length,4);assert.match(ctx.out[0].text,/Finding and downloading/);assert.equal(ctx.out[1].audio.toString(),'preview');assert.equal(ctx.out[2].audio.toString(),'full');assert.match(ctx.out[3].text,/fallback provider example/);assert.match(ctx.out[3].text,/first audio was an iTunes preview/);assert.match(ctx.out[3].text,/may differ from the original/);
-  dl.searchYoutube=async()=>[];const missing=context(['https://open.spotify.com/track/11dFghVXANMlKmJXsNCbNl']);await c.get('spotify').run(missing);assert.equal(missing.out.length,3);assert.match(missing.out[2].text,/audio above was a short iTunes preview/);
+  assert.equal(ctx.out.length,3);assert.equal(ctx.out[0].audio.toString(),'preview');assert.equal(ctx.out[1].audio.toString(),'full');assert.match(ctx.out[2].text,/fallback provider example/);assert.match(ctx.out[2].text,/first audio was an iTunes preview/);assert.match(ctx.out[2].text,/may differ from the original/);
+  dl.searchYoutube=async()=>[];const missing=context(['https://open.spotify.com/track/11dFghVXANMlKmJXsNCbNl']);await c.get('spotify').run(missing);assert.equal(missing.out.length,2);assert.match(missing.out[1].text,/audio above was a short iTunes preview/);
  }finally{global.fetch=oldFetch;dl.searchYoutube=oldSearch;dl.download=oldDownload;media.convert=oldConvert;}
 });
 test('quick image and text-sticker commands send one result, keeping illustration safety information',async()=>{

@@ -37,7 +37,6 @@ async function run(ctx,kind,scope){
   drafts.delete(ctx.sender);active=true;
   try{
    let sent=0,failed=0,skipped=0;
-   await ctx.reply(`⏳ Sending to up to ${d.ids.length} opted-in chats. Recipients can opt out before their turn.`);
    for(const id of d.ids){
     if(!await ctx.db.get(`broadcast:optin:${id}`,false)){skipped++;continue;}
     try{await ctx.sock.sendMessage(id,d.content);sent++;}catch{failed++;}

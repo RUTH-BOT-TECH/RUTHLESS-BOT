@@ -11,7 +11,6 @@ async function run(ctx,kind){
   if(active)return ctx.reply('⚠️ Another host command is running. Try again before this confirmation expires.');
   drafts.delete(ctx.sender);active=true;
   try{
-   await ctx.reply('⏳ Running on the bot host. Output may contain secrets.');
    let result;try{result=await host.execute(kind,d.input);}catch{return ctx.reply('⚠️ Could not start the host command.');}
    const output=result.output.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,'');
    return ctx.reply(`🖥️ Host result\n${result.timedOut?'Timed out':`Exit: ${result.code===null?'terminated':result.code}`}${result.truncated?' (output truncated)':''}\n${output||'(no output)'}`);

@@ -18,7 +18,7 @@ module.exports=[
    const d=drafts.get(ctx.sender);if(ctx.args.length!==2||!d||d.code!==ctx.args[1]||d.expires<=now)return ctx.reply('⚠️ Confirmation invalid or expired. Prepare the clear operation again.');
    if(active)return ctx.reply('⚠️ Another clear operation is in progress.');
    drafts.delete(ctx.sender);active=true;
-   try{let ok=0,fail=0;await ctx.reply(`⏳ Requesting WhatsApp to clear ${d.items.length} observed chat(s). This may be irreversible.`);
+   try{let ok=0,fail=0;
     for(const item of d.items){try{await ctx.sock.chatModify({clear:true,lastMessages:[item.msg]},item.jid);ok++;chats.forget(item.jid,item.msg.key.id);}catch{fail++;}}
     return ctx.reply(`🧹 WhatsApp accepted ${ok} clear request(s); ${fail} failed. This covered only chats seen in this bot process, not every account chat. Verify results on your linked account.`);
    }finally{active=false;}
