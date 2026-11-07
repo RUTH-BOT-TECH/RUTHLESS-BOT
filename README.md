@@ -43,6 +43,10 @@ On Render, enter **`SESSION_ID`** and **`OWNER_NUMBER`** (international digits, 
 
 The owner can enable `.stickercollect on` in a group with members' permission. The bot announces collection, then sends batches of ten newly posted stickers as **individual stickers** to its linked account's own chat, with `Ruth` / `If you can steal it 😹` metadata. `.stickercollect status` checks the group; `.stickercollect off` stops collection and removes that group's unsent items. It is not an anti-copy feature or automatic favourites, and live WhatsApp delivery is unverified. Pending stickers are stored locally and may be lost on ephemeral hosting; see the [privacy details](docs/setup-and-privacy.md#opt-in-sticker-collection-experimental).
 
+## 👁️ Private view-once copying (opt-in, experimental)
+
+With all participants' permission, the owner can use `.antiviewonce on` separately in a particular group or private chat. A notice is sent to that chat before enabling. Newly received view-once images, videos or audio may be copied as ordinary media to `OWNER_NUMBER` privately, not reposted to the source chat. Use `.antiviewonce status` or `.antiviewonce off` in that chat. Old group settings do **not** enable this new behavior automatically; re-enable only after consent. This does not retrieve old messages and has not been tested on live WhatsApp. See the [privacy details](docs/setup-and-privacy.md#private-view-once-copying-experimental).
+
 ## 💻 Run locally
 
 ```bash

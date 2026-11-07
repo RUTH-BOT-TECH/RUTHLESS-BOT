@@ -167,7 +167,7 @@ for (const [name, remove] of [['addbadword',false], ['delbadword',true]]) comman
   await ctx.db.set(key,next); await ctx.reply(`✅ ${remove ? 'Removed' : 'Added'} blocked phrase: ${word}`);
 }));
 
-for (const name of ['antidelete','antiviewonce','antifake']) commands.push(cmd(name, [], `Toggle ${name}.`, `${name} on|off`, async ctx => {
+for (const name of ['antidelete','antifake']) commands.push(cmd(name, [], `Toggle ${name}.`, `${name} on|off`, async ctx => {
   const key = groupKey(ctx.chat,`protection:${name}`), mode=ctx.args[0];
   if (!mode) return ctx.reply(`🛡️ ${name}: ${await ctx.db.get(key,'off')}.`);
   if (ctx.args.length!==1 || !['on','off'].includes(mode)) return usage(ctx,`${name} on|off`,`${name} on`);

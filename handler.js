@@ -21,7 +21,8 @@ async function handle(sock, msg, commands, db) {
   const chat = msg.key.remoteJid; const group = chat.endsWith('@g.us');
   const sender = group ? msg.key.participant : (msg.key.fromMe ? sock.user?.id : chat);
   if (!sender) return;
-  const alt = group ? msg.key.participantAlt : msg.key.remoteJidAlt;
+  // In a sent DM, remoteJidAlt identifies the other party, not the sender.
+  const alt = group ? msg.key.participantAlt : (msg.key.fromMe ? null : msg.key.remoteJidAlt);
   const text = getText(msg.message).trim();
   const storedPrefix=await db.get('settings:prefix',config.prefix);if(typeof storedPrefix==='string'&&/^[.!#$%&?~]{1,3}$/.test(storedPrefix))config.prefix=storedPrefix;
   let resolved=await phoneJid(sock,sender,alt), verifiedMeta=null;
