@@ -6,16 +6,16 @@ const sender='2348012345678@s.whatsapp.net',chat='2348012345678@s.whatsapp.net';
 const message=text=>({key:{remoteJid:chat,id:'test'},message:{conversation:text},pushName:'Dark eye developer'});
 async function setup(){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'ruthless-menu-test-')),db=await new Database('',path.join(dir,'db.json')).connect(),sent=[];const sock={user:{id:'2348000000000@s.whatsapp.net'},sendMessage:async(jid,payload,options)=>{sent.push({jid,payload,options});return {};},profilePictureUrl:async()=>{throw Error('hidden')}};return {dir,db,sent,sock,async close(){await db.close();await fs.rm(dir,{recursive:true,force:true});}};}
 function unique(m){return [...new Set(m.values())].filter(x=>!x.ownerOnly);}
-test('menu summary is compact, shows dynamic counts, tags sender and does not use pushName',async()=>{
+test('menu summary shows real dynamic details, tags sender and does not use pushName',async()=>{
  const x=await setup();try{const commands=loadCommands();await handle(x.sock,message('.menu'),commands,x.db);const p=x.sent.at(-1).payload,caption=p.caption||p.text;
   assert.ok(Buffer.isBuffer(p.image));assert.deepEqual(p.mentions,[sender]);assert.match(caption,/@2348012345678/);assert.doesNotMatch(caption,/Dark eye developer/);
-  assert.match(caption,new RegExp('Commands: '+unique(commands).length));assert.match(caption,/\.menu ai \(36\)/);assert.match(caption,/\.menu downloaders \(48\)/);assert.doesNotMatch(caption,/\.menu owner\b/);
-  assert.ok(caption.startsWith('┌─❖\n│ '));assert.match(caption,/└┬❖\n/);assert.ok(caption.endsWith('└───────❖'));assert.ok(caption.length<500);assert.ok(caption.split('\n').length<=15);
+  assert.match(caption,new RegExp('\\*Commands\\* : '+unique(commands).length));assert.match(caption,/\.menu ai \(36\)/);assert.match(caption,/\.menu downloaders \(48\)/);assert.doesNotMatch(caption,/\.menu owner\b/);
+  assert.ok(caption.startsWith('┏❐  *◈ '));assert.match(caption,/COMMAND CATEGORIES/);assert.match(caption,/\*Mode\* : public/);assert.match(caption,/\*Prefix\* : \[\.\]/);assert.ok(caption.includes('┗❐'));assert.ok(caption.length<900);
  }finally{await x.close();}
 });
-test('category page shows its own primary commands in aligned pairs and preserves help',async()=>{
+test('category page shows primary commands in single rows and preserves help',async()=>{
  const x=await setup();try{const commands=loadCommands();await handle(x.sock,message('.menu ai'),commands,x.db);const p=x.sent.at(-1).payload,t=p.caption||p.text;
-  assert.ok(Buffer.isBuffer(p.image));assert.match(t,/│ AI \(36\)/);assert.match(t,/│ ➤ \.ai\s+\.aiavatar/);assert.match(t,/\.paraphrase/);assert.match(t,/\.aiinfo/);assert.doesNotMatch(t,/\.ytmp3/);assert.ok(t.split('\n').length<=40);assert.ok(t.startsWith('```┌─❖'));assert.ok(t.endsWith('└───────❖```'));
+  assert.ok(Buffer.isBuffer(p.image));assert.match(t,/AI MENU/);assert.match(t,/36 commands/);assert.match(t,/┣◆ \.ai\n/);assert.match(t,/┣◆ \.aiavatar\n/);assert.match(t,/\.aiinfo/);assert.doesNotMatch(t,/\.ytmp3/);assert.ok(t.split('\n').length<=40);assert.ok(t.startsWith('┏❐'));assert.ok(t.endsWith('┗❐'));
   await handle(x.sock,message('.help weather'),commands,x.db);assert.match(x.sent.at(-1).payload.text,/weather/);assert.match(x.sent.at(-1).payload.text,/Open-Meteo/);
  }finally{await x.close();}
 });
@@ -26,9 +26,9 @@ test('unknown category reports actual categories; menu all sends an owner-filter
 });
 test('large dynamic categories paginate with no more than 40 lines, no missing names, and invalid pages are rejected',async()=>{
  const x=await setup();try{const commands=loadCommands(),menu=commands.get('menu');for(let n=1;n<=145;n++){const name='c'+String(n).padStart(3,'0'),c={name,aliases:[],category:'huge',ownerOnly:false};commands.set(name,c);}
-  let out=[];for(const page of [1,2,3]){await handle(x.sock,message(`.menu huge ${page}`),commands,x.db);const p=x.sent.at(-1).payload,t=p.caption||p.text;out.push(t);assert.ok(t.split('\n').length<=40);assert.match(t,/HUGE \(145\)/);assert.match(t,new RegExp(`${page}/3`));}
+  let out=[];for(const page of [1,2,3,4,5]){await handle(x.sock,message(`.menu huge ${page}`),commands,x.db);const p=x.sent.at(-1).payload,t=p.caption||p.text;out.push(t);assert.ok(t.split('\n').length<=40);assert.match(t,/HUGE MENU/);assert.match(t,/145 commands/);assert.match(t,new RegExp(`${page}/5`));}
   for(let n=1;n<=145;n++){const name='.c'+String(n).padStart(3,'0');assert.equal(out.join('\n').split(name).length-1,1,name);}
-  await handle(x.sock,message('.menu huge 4'),commands,x.db);assert.match(x.sent.at(-1).payload.text,/INVALID PAGE/);assert.match(x.sent.at(-1).payload.text,/1-3/);
+  await handle(x.sock,message('.menu huge 6'),commands,x.db);assert.match(x.sent.at(-1).payload.text,/INVALID PAGE/);assert.match(x.sent.at(-1).payload.text,/1-5/);
  }finally{await x.close();}
 });
 test('menu image discovery reads assets/menus and retains compatibility with assets/menu',async()=>{

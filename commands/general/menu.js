@@ -2,20 +2,22 @@
 const config = require('../../config');
 const { clean } = require('../../lib/owner');
 const { send } = require('../../lib/event-images');
+const botMode = require('../../lib/bot-mode');
+const { version } = require('../../package.json');
 
-// 35 command rows + title, borders and navigation = at most 40 lines.
-const PAGE_SIZE = 70;
+// 35 command rows + title, border and navigation = at most 39 lines.
+const PAGE_SIZE = 35;
 const MAX_CAPTION = 900;
 const TITLE_LIMIT = 36;
 const oneLine = (value, fallback = '') => String(value || fallback).replace(/[\r\n\t]+/g, ' ').trim().slice(0, TITLE_LIMIT);
 const uptime = seconds => {
   const n = Math.floor(seconds);
   const d = Math.floor(n / 86400), h = Math.floor(n % 86400 / 3600), m = Math.floor(n % 3600 / 60);
-  return d ? `${d}d ${h}h ${m}m` : h ? `${h}h ${m}m` : `${m}m`;
+  const s = n % 60;
+  return d ? `${d}d ${h}h ${m}m ${s}s` : h ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
 };
 const border = title => ['┌─❖', `│ ${title}`, '└┬❖'];
 const close = lines => [...lines, '└───────❖'].join('\n');
-const mono = text => '```' + text + '```';
 
 function inventory(commands) {
   const groups = new Map();
@@ -34,54 +36,63 @@ function label() {
   return tagline === bot ? bot : `${bot} · ${tagline}`;
 }
 function listCategories(groups, prefix) {
-  return [...groups].map(([name, commands]) => `│ ➤ ${prefix}menu ${name} (${commands.length})`);
+  return [...groups].map(([name, commands]) => `┣◆ ${prefix}menu ${name} (${commands.length})`);
 }
-function compactCategories(groups, prefix) {
-  const entries = [...groups].map(([name, commands]) => `${prefix}menu ${name} (${commands.length})`);
-  const lines = [];
-  for (let i = 0; i < entries.length; i += 2) lines.push(`│ ➤ ${entries[i]}${entries[i + 1] ? `  ·  ${entries[i + 1]}` : ''}`);
-  return lines;
+function hostName(env = process.env) {
+  if (env.RAILWAY_ENVIRONMENT || env.RAILWAY_PROJECT_ID) return 'Railway';
+  if (env.RENDER) return 'Render';
+  if (env.DYNO) return 'Heroku';
+  return 'Other / local';
 }
-function overview(groups, sender, prefix, seconds) {
+function overview(groups, sender, prefix, seconds, mode) {
   const count = [...groups.values()].reduce((sum, commands) => sum + commands.length, 0);
-  const lines = border(label());
-  lines.push(`│ ➤ @${clean(sender)}`);
-  lines.push(`│ ➤ ${prefix} | ${uptime(seconds)} | Commands: ${count}`);
-  lines.push('│ ➤ CATEGORIES');
-  lines.push(...compactCategories(groups, prefix));
-  return close(lines);
+  const bot = oneLine(config.botName, 'Ruthless');
+  const owner = oneLine(process.env.BOT_OWNER_NAME, 'Not set');
+  return [
+    `┏❐  *◈ ${bot} ◈*`,
+    `┃ *Owner* : ${owner}`,
+    `┃ *Mode* : ${mode}`,
+    `┃ *Host* : ${hostName()}`,
+    `┃ *Prefix* : [${prefix}]`,
+    `┃ *Uptime* : ${uptime(seconds)}`,
+    `┃ *Version* : ${version}`,
+    `┃ *Commands* : ${count}`,
+    `┃ *User* : @${clean(sender)}`,
+    '┗❐',
+    '',
+    '┏❐ 《 *COMMAND CATEGORIES* 》 ❐',
+    ...listCategories(groups, prefix),
+    '┗❐',
+    `➤ ${prefix}menu <category> · ${prefix}menu all`,
+    `➤ ${prefix}help <command>`
+  ].join('\n');
 }
 function commandRows(commands, prefix) {
-  const names = commands.map(command => prefix + command.name);
-  const width = Math.max(...names.map(name => name.length));
-  const rows = [];
-  for (let i = 0; i < names.length; i += 2) {
-    const pair = names[i + 1] ? `${names[i].padEnd(width)}  ${names[i + 1]}` : names[i];
-    rows.push(`│ ➤ ${pair}`);
-  }
-  return rows;
+  return commands.map(command => `┣◆ ${prefix}${command.name}`);
+}
+function renderCategory(category, commands, pageCommands, prefix, navigation = '') {
+  const lines = [`┏❐ 《 *${oneLine(category).toUpperCase()} MENU* 》 ❐`,
+    `┃ ${commands.length} commands`, ...commandRows(pageCommands, prefix)];
+  if (navigation) lines.push(`┃ ${navigation}`);
+  return [...lines, '┗❐'].join('\n');
 }
 function pagesFor(category, commands, prefix) {
   const pages = [];
   let current = [];
-  for (let i = 0; i < commands.length; i += 2) {
-    const pair = commands.slice(i, i + 2), next = [...current, ...pair];
-    const reserve = `│ ➤ 9999/9999 · ${prefix}menu ${category} 9999`;
-    const preview = mono(close([...border(`${category.toUpperCase()} (${commands.length})`), ...commandRows(next, prefix), reserve]));
+  for (const command of commands) {
+    const next = [...current, command];
+    const reserve = `9999/9999 · ${prefix}menu ${category} 9999`;
+    const preview = renderCategory(category, commands, next, prefix, reserve);
     if (current.length && (next.length > PAGE_SIZE || preview.length > MAX_CAPTION)) {
-      pages.push(current); current = pair;
+      pages.push(current); current = [command];
     } else current = next;
   }
   if (current.length) pages.push(current);
   return pages;
 }
 function categoryPage(category, commands, pages, page, prefix) {
-  const lines = [...border(`${category.toUpperCase()} (${commands.length})`), ...commandRows(pages[page - 1], prefix)];
-  if (pages.length > 1) {
-    const next = page < pages.length ? `${prefix}menu ${category} ${page + 1}` : `${prefix}menu ${category} 1`;
-    lines.push(`│ ➤ ${page}/${pages.length} · ${next}`);
-  }
-  return mono(close(lines));
+  const next = page < pages.length ? `${prefix}menu ${category} ${page + 1}` : `${prefix}menu ${category} 1`;
+  return renderCategory(category, commands, pages[page - 1], prefix, pages.length > 1 ? `${page}/${pages.length} · ${next}` : '');
 }
 function exportMenu(groups, prefix) {
   const lines = border(`${label()} · ALL COMMANDS`);
@@ -111,7 +122,7 @@ module.exports = {
     const groups = inventory(ctx.commands), prefix = config.prefix;
     const query = String(ctx.args[0] || '').replace(prefix, '').toLowerCase();
     if (!query && ctx.args.length === 0) {
-      return sendBanner(ctx, overview(groups, ctx.sender, prefix, process.uptime()), [ctx.sender]);
+      return sendBanner(ctx, overview(groups, ctx.sender, prefix, process.uptime(), await botMode.current(ctx.db)), [ctx.sender]);
     }
     if (query === 'all' && ctx.args.length === 1) {
       const document = exportMenu(groups, prefix);
